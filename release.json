@@ -1,6 +1,6 @@
 {
   "name": "ElectroPanel Studio",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3",
   "files": {
     "app.js": "cb8e8b707e05ceca4b739f67216a374eec284914ed0d9d534d415b14d50befc9",
     "assets/devices/contactor-2p.svg": "0682a9ced9e27e459fd825003048d8d5857a490e7f00a83990ad3d12801c1f18",
@@ -36,9 +36,9 @@
     "floor-plan-ui.js": "3d35b1c1dc000d44489884fed9d97a6708bf0763c9176f4f2ac21d6fabff39a5",
     "floor-plan.css": "f7708fc2671c4c90f015a2396097401e44ee3ecd7e5828b5cba27e532ff925e9",
     "floor-plan.js": "24785ea4c6f1c323dc6679aa351a83648a21a90417d0b6091810966144948746",
-    "floor-svg.js": "54ea3550945a638fffb3336b5d17e95db3f9321875bed690a64a16e90ced178e",
+    "floor-svg.js": "edfa51699cc1908fd54944be2871b604092f24f82b71e59332f0159bf0e84b7d",
     "floor-ux-ui.js": "3aad1cb1a091d7adf7439a386c2a19edea8f0834bf1dd4761bc0b6d5cbaf5d4c",
-    "index.html": "da01e4f9a0651d8cf8acc1f5f89984e90c0ceab64ca5f125919451a8053c3cc3",
+    "index.html": "dc746af9f545d26ba93dd66220c47fee90a9cc13191d98f8d1b980b2b33ab4be",
     "manifest.webmanifest": "75c84d318205a71e373e677723f4ed70c52cbe583741101b52f859dd5a1e498f",
     "mechanical-ui.js": "cc36bfdde5a7c2b97f46d3c5ecea219501fb2a330258f13727d213b348fa9922",
     "mechanical.css": "b96b47ef604281b277120d3b865341746d0c78433dcb315817b166044e51c0ea",
@@ -49,7 +49,7 @@
     "schematic-ui.js": "bfd82240db7325751eef657f1d01fa4c0918dde2d93fd7da10667b71f9705d72",
     "schematic.css": "f22d2103a2ed29d69cde7049447c46f884c8d9a8320e88ec0a908b3e88de91fa",
     "schematic.js": "9ae07c85a4505a053c154596a6c44b8ce2145ae3f3fdd3a82eba0d6247cefbd8",
-    "service-worker.js": "9b60e1feea699050e413a6b931547a682cb01daeaf87226463840566b8507bef",
+    "service-worker.js": "f294e4a9333d4c7c4383f328f68b81aacc93506c8376c15efa5d7f78282efacb",
     "styles.css": "d637dcac37ac05b0cc816dbc4abfed73c880136e898956ddef8347f2c5263123",
     "templates-ui.js": "1afbeb22487988af674b941b07ee4148cc4f7cb8b43a337bd23f7c8630a04203",
     "templates.css": "d194a91c1ac3758d4ad881618a37f85c1edc47080422fba2c9ffc802a02c8920",
