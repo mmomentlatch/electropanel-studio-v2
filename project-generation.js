@@ -83,21 +83,26 @@
   function buildPlan(project, options = {}) {
     const branches = F.branches(project);
     if (!branches.length) throw new Error("Додайте до щита хоча б один кінцевий автомат або дифавтомат.");
+    const socketRouting = options.socketRouting ?? (["junction", "radial"].includes(project.floorPlan?.socketRouting) ? project.floorPlan.socketRouting : "junction");
+    if (!["junction", "radial"].includes(socketRouting)) throw new Error("Оберіть розводку розеток через дозу або окремими кабелями від щита.");
+    if (options.socketCounts != null && (typeof options.socketCounts !== "object" || Array.isArray(options.socketCounts))) throw new Error("Перевірте кількість розеток для кожного кола.");
     const existing = Boolean(project.floorPlan?.rooms?.length), keep = existing && options.keepPoints !== false;
-    const next = copy(project), notes = [], created = [], rows = [];
+    let next = copy(project);
+    const notes = [], created = [], rows = [];
     const plan = existing ? F.normalize(project.floorPlan) : F.create(project, templateId(project, options.templateId));
     const panel = plan.points.find((point) => point.type === "panel");
     plan.points = keep ? plan.points : [panel];
     const validIds = new Set(branches.map((device) => device.id));
     plan.points.forEach((point) => { if (point.circuitId && !validIds.has(point.circuitId)) point.circuitId = ""; });
     const arrangement = F.layout(plan), rooms = plan.rooms;
-    const chooseRoom = (kind, name) => rooms.find((room) => room.kind === kind || room.id === kind) || rooms.find((room) => name.toLocaleLowerCase("uk").includes(room.name.toLocaleLowerCase("uk"))) || rooms.find((room) => room.kind === "living") || rooms.find((room) => !["outdoor", "hall"].includes(room.kind)) || rooms[0];
+    const roomHints = [["kitchen", /кухн|kitchen/i], ["bath", /ванн|душ|санвуз|bath/i], ["bedroom", /спальн|bedroom/i], ["living", /вітальн|living/i], ["hall", /коридор|hall/i]];
+    const chooseRoom = (kind, name) => rooms.find((room) => room.kind === kind || room.id === kind) || rooms.find((room) => name.toLocaleLowerCase("uk").includes(room.name.toLocaleLowerCase("uk"))) || rooms.find((room) => room.kind === roomHints.find(([, regex]) => regex.test(name))?.[0]) || rooms.find((room) => room.kind === "living") || rooms.find((room) => !["outdoor", "hall"].includes(room.kind)) || rooms[0];
     function add(type, room, device, name, u, v, heightM, extra = {}) {
-      const prefix = { socket: "X", light: "EL", switch: "S", equipment: "EP" }[type];
+      const prefix = { socket: "X", light: "EL", switch: "S", equipment: "EP", junction: "Д" }[type];
       let number = 1; while (plan.points.some((point) => point.label === `${prefix}${number}`)) number++;
       const point = { id: E.id(), type, roomId: room.id, label: `${prefix}${number}`, name, u, v, heightM: heightM === null ? null : Math.min(heightM, plan.ceilingHeightM), circuitId: device.id, ...extra };
       const box = arrangement.rooms.find((item) => item.id === room.id);
-      let onWall = type !== "light";
+      let onWall = !["light", "junction"].includes(type);
       const preferred = { x: box.x + u * box.widthM, y: box.y + v * box.depthM };
       try { F.placePoint(plan, point, preferred, onWall); }
       catch { onWall = false; F.placePoint(plan, point, preferred); notes.push(`${room.name}: немає закритої стіни для настінної точки. Уточніть місце монтажу.`); }
@@ -127,6 +132,7 @@
       const before = created.length, spec = project.design?.circuits?.find((record) => record.deviceId === device.id);
       const consumer = E.consumerForDevice(project, device.id);
       const name = consumer?.name || device.name, key = spec?.key || "";
+      let socketCount = null, socketEditable = false;
       if (!retained.length) {
         const appliance = applianceRules.find(([code, regex]) => key === code || regex.test(name));
         if (lightingBranches.includes(device)) {
@@ -144,18 +150,50 @@
           add("equipment", chooseRoom(spec.wet ? "bath" : key, name), device, name, .5, 0, .3);
         } else {
           const room = chooseRoom(key, name);
-          for (const [u, v] of [[0, .3], [.3, 0], [1, .7]]) add("socket", room, device, `${name} · розетка`, u, v, room.kind === "kitchen" ? 1.1 : .3);
+          const singular = /(?:^|[^а-яіїєґ])розетка(?:$|[^а-яіїєґ])|\bsocket\b|\boutlet\b/i.test(name);
+          const group = /розетки|розеток|розеткова|\bsockets\b|\boutlets\b/i.test(name) || ["living", "bedroom", "bedroom2", "kitchen", "bath", "utility"].includes(key);
+          socketCount = Number(options.socketCounts?.[device.id] ?? (singular || !group ? 1 : 3));
+          if (!Number.isInteger(socketCount) || socketCount < 1 || socketCount > 498) throw new Error(`${device.label}: задайте 1–498 розеток у межах загального ліміту плану 500 точок.`);
+          socketEditable = true;
+          const locations = [[0, .3], [.3, 0], [1, .7]];
+          for (let i = 0; i < socketCount; i++) { const [u, v] = locations[i % locations.length]; add("socket", room, device, `${name} · розетка`, u, v, room.kind === "kitchen" ? 1.1 : .3); }
         }
       }
-      rows.push({ deviceId: device.id, label: device.label, name, added: created.length - before, retained: plan.points.filter((point) => point.circuitId === device.id && !created.includes(point.id)).length });
+      rows.push({ deviceId: device.id, label: device.label, name, added: created.length - before, retained: plan.points.filter((point) => point.circuitId === device.id && !created.includes(point.id)).length, socketCount: socketCount ?? (plan.points.filter((point) => point.type === "socket" && point.circuitId === device.id).length || null), socketEditable, socketRoute: "" });
     });
+    let newJunctions = 0, preservedRouting = 0;
+    rows.forEach((row) => {
+      const sockets = plan.points.filter((point) => point.type === "socket" && point.circuitId === row.deviceId);
+      if (!sockets.length) return;
+      // Missing supplyFromId denotes the original automatic home run. Explicit
+      // panel feeds, chains and boxes are user choices and remain untouched.
+      const automatic = sockets.every((point) => !Object.hasOwn(point, "supplyFromId"));
+      if (socketRouting === "radial" && automatic) sockets.forEach((point) => { point.supplyFromId = ""; });
+      if (socketRouting === "junction" && sockets.length > 1 && automatic) {
+        const roomIds = new Set(sockets.map((point) => point.roomId));
+        const room = roomIds.size > 1 && rooms.find((room) => room.kind === "hall") || rooms.find((room) => room.id === sockets[0].roomId);
+        const device = branches.find((item) => item.id === row.deviceId);
+        const box = add("junction", room, device, `Доза · ${row.name}`, .7, .2, null, { mounting: "ceiling" });
+        sockets.forEach((point) => { point.supplyFromId = box.id; });
+        row.added++; newJunctions++;
+      } else if (socketRouting === "junction" && sockets.length > 1 && !automatic) preservedRouting++;
+      const sources = sockets.map((point) => F.sourceFor(plan, point));
+      const sharedBox = sources[0]?.type === "junction" && sources.every((source) => source?.id === sources[0].id);
+      row.socketRoute = sharedBox ? `Через ${sources[0].label}: 1 підвід · розеток: ${sockets.length}` : sources.every((source) => source?.type === "panel") ? `Від щита · кабелів: ${sockets.length}` : "Збережена проводка користувача";
+    });
+    plan.socketRouting = socketRouting;
+    if (created.length) plan.geometryConfirmed = false;
     next.floorPlan = F.normalize(plan);
+    if (next.floorPlan.syncWithCircuits) next = F.syncLengths(next);
     if (next.design) { next.design.approval = null; next.design.supply.dataConfirmed = false; }
     const result = F.calculate(next);
     if (result.unassigned.length) notes.push(`${result.unassigned.length} збережених точок не мають чинного автомата. Призначте коло у властивостях точки.`);
     if (result.errors.length) notes.push(`Для частини точок немає прохідної траси або правильного джерела (${result.errors.length} зауважень). Перевірте зв’язки та двері на плані.`);
+    if (newJunctions) notes.push(`Додано доз: ${newJunctions}. Кілька розеток одного кола отримали спільний підвід та окремі відгалуження. Кола різних автоматів не об’єднуються.`);
+    if (preservedRouting) notes.push("Наявні явні підключення збережено. Для повної зміни схеми розеток зніміть прапорець збереження точок перед автопобудовою.");
+    if (newJunctions) notes.push("Дози розміщено умовно на стелі; перевірте доступність для обслуговування, спосіб з’єднання та параметри кабелів і захисту.");
     notes.push("Розташування та кількість нових точок — редагований ескіз. Уточніть їх, висоти й фактичні маршрути на об’єкті.");
-    return { project: next, rows, added: created.length, kept: plan.points.length - created.length, notes: [...new Set(notes)], routing: result, existingGeometry: existing };
+    return { project: next, rows, added: created.length, kept: plan.points.length - created.length, notes: [...new Set(notes)], routing: result, existingGeometry: existing, socketRouting, newJunctions };
   }
   return { inspectPlan, rebuildPanel, buildPlan, loadPoint };
 });
