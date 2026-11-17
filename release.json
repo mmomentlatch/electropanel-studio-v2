@@ -1,8 +1,8 @@
 {
   "name": "ElectroPanel Studio",
-  "version": "2.0.0-beta.12",
+  "version": "2.0.0-beta.13",
   "files": {
-    "app.js": "e2afc34c9f15aea1d08bb40201616d4d59be0ab4d4e558ff0b81e1baa9e9c2ae",
+    "app.js": "8157be9c9d19e1fb03be6f4030fdf48c57ce2ecaea0ab811b4dde09c75ad6ec8",
     "assets/devices/contactor-2p.svg": "0682a9ced9e27e459fd825003048d8d5857a490e7f00a83990ad3d12801c1f18",
     "assets/devices/contactor-3p.svg": "364ec7f17fe35eb856bb1d9c54ce2761b45066859fa0580e1c2498921c9c7c1e",
     "assets/devices/contactor.png": "8867945bd9368c9ec482d4ae89f9194e0133505157fad41fad926c4809b92319",
@@ -22,6 +22,7 @@
     "assets/devices/terminal-block.png": "6bb688fcc18d8d3471a8a45008b9c67126188380badbc763a369094872582b7e",
     "assets/devices/timer-relay.svg": "cf1f5b4a30c2c51dbc23f37c9e28088c605e0580b8efe5a7354570bbeaff835c",
     "assets/devices/voltage-relay.png": "903c6e97f431adc392ae2b67b5f19e6a8ac4613de38db20fc7330755a3bf06f6",
+    "buttons.css": "2b2d436e12e552d81ea8f1693085fbf328c6d03c2dc4db714b39ab0c257b858d",
     "cable-report-ui.js": "70ce80cbaa886ec13bfff2fac5113dfb13984a5644e2d8c03882e9b3f4dbb03e",
     "cable-report.js": "4fae43c91744bb345819ad17635c2eb12730866ec992bfb6d78a19bba42109d5",
     "control-devices.js": "f21bac340ffc3ad21d0021e0342b8826a7fdfdb00f94d52f535bc20576b49df3",
@@ -41,7 +42,7 @@
     "floor-svg.js": "edfa51699cc1908fd54944be2871b604092f24f82b71e59332f0159bf0e84b7d",
     "floor-ux-ui.js": "99fa7b8e89df83af580eeead829e3e0c7102a2a4059140649f23acdc8bbc7e37",
     "form-drafts.js": "05b487f1ff4a4f64f1ae46182fb84b866b4c0e72550b94da04806567f9f67aa0",
-    "index.html": "129c15ea8f68e30cbe83deac135ccadc5f2347ac9a5d16d833b2104efbb40910",
+    "index.html": "3f108b2c7988d10c8334d96a659cca34f3c0224a84018ec1654679984b00cd34",
     "manifest.webmanifest": "75c84d318205a71e373e677723f4ed70c52cbe583741101b52f859dd5a1e498f",
     "mechanical-ui.js": "406be1c83f67f74bc672f3859c3851e72f519705a86158dd0150fdb7152ee066",
     "mechanical.css": "c8d03c4abc3be632c741fa8e2b75471a5d53b17b8a6ac7ff7bc24eeb31f8d707",
@@ -56,7 +57,7 @@
     "schematic-ui.js": "bfd82240db7325751eef657f1d01fa4c0918dde2d93fd7da10667b71f9705d72",
     "schematic.css": "f22d2103a2ed29d69cde7049447c46f884c8d9a8320e88ec0a908b3e88de91fa",
     "schematic.js": "9ae07c85a4505a053c154596a6c44b8ce2145ae3f3fdd3a82eba0d6247cefbd8",
-    "service-worker.js": "b87246c02a790f2bbf79b6080ff03e39a39d5d265f31e4063b72713e3a5b1cb4",
+    "service-worker.js": "2e4d82a38698e6bc5499bc57fd2cce216b62423045058ae4ef75b169577e052e",
     "styles.css": "51d5e4dc95ce3543f9c8392f07f431e38be624f20ca38d14a8fcd87ba2ef1d81",
     "templates-ui.js": "e5bf17cfe43851f38f91ca3261a6840270cd5bb4a51ba70353ac4236b5bac9e1",
     "templates.css": "9143e9353f3433aff1eda6fcc585143d1fdf46ea058544c3dde9c07eacc179d5",
@@ -67,7 +68,7 @@
     "vendor/robust-predicates.LICENSE": "88d9b4eb60579c191ec391ca04c16130572d7eedc4a86daa58bf28c6e14c9bcd",
     "vendor/splaytree.LICENSE": "ee0abf2ef497474b599b4bda829e8bb52ef6a29feb2aff2d497fee9c110f44f6",
     "viewport.js": "9184bb507d2657e33675c63ca247b51b896ca43c26f8ceae971026ccc5392975",
-    "wiring.css": "415042e4babdee0a46e9fa113585e286a6184af69c684efb6e0a12f03e83813d",
+    "wiring.css": "6290c84c0d26e80a853b0bcb72aa1ce9eb642995240f28702256a0066ca89f71",
     "wiring.js": "82edcf58df700aaa99b2628388f65dcd36a6c45c57e91cecd73a65a4f8edade6"
   }
 }

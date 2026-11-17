@@ -10,12 +10,13 @@
     <meta name="theme-color" content="#101a24" />
     <title>ElectroPanel Studio 2</title>
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=224" />
-    <link rel="stylesheet" href="wiring.css?v=224" />
-    <link rel="stylesheet" href="templates.css?v=224" />
-    <link rel="stylesheet" href="mechanical.css?v=224" />
-    <link rel="stylesheet" href="schematic.css?v=224" />
-    <link rel="stylesheet" href="floor-plan.css?v=224" />
+    <link rel="stylesheet" href="styles.css?v=228" />
+    <link rel="stylesheet" href="wiring.css?v=228" />
+    <link rel="stylesheet" href="templates.css?v=228" />
+    <link rel="stylesheet" href="mechanical.css?v=228" />
+    <link rel="stylesheet" href="schematic.css?v=228" />
+    <link rel="stylesheet" href="floor-plan.css?v=228" />
+    <link rel="stylesheet" href="buttons.css?v=228" />
   </head>
   <body>
     <div class="app-shell">
@@ -71,7 +72,7 @@
             </div>
             <span class="library-count" id="libraryCount">0</span>
           </div>
-          <button class="template-launcher" id="openTemplatesButton" type="button">⌂ Готові щити · 4 варіанти</button>
+          <button class="template-launcher" id="openTemplatesButton" type="button"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m3 11 9-8 9 8M5 10v11h14V10M10 21v-7h4v7"/></svg> <span class="button-label">Готові щити · 4 варіанти</span></button>
 
           <section class="layout-palette" id="layoutPalette" role="tabpanel" aria-labelledby="layoutModeTab">
             <div class="insert-wire-banner hidden" id="wireInsertionHint" role="status"><strong id="wireInsertionLabel"></strong><span>Оберіть апарат у каталозі — він буде вставлений у цей провід.</span><button id="cancelWireInsertionButton" type="button">Скасувати вставлення</button></div>
@@ -119,38 +120,31 @@
         <section class="editor-area">
           <div class="view-tabs" role="tablist" aria-label="Режим редактора">
             <button class="view-tab active" data-view="board" type="button">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M7 8h10M7 13h10M7 18h10" /></svg>
-              Компоновка
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M7 8h10M7 13h10M7 18h10" /></svg><span class="button-label">Компоновка</span>
             </button>
-            <button class="view-tab" data-view="floor" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3zM3 11h10V3m0 8v10m0-6h8"/></svg>План приміщень</button>
+            <button class="view-tab" data-view="floor" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3zM3 11h10V3m0 8v10m0-6h8"/></svg><span class="button-label">План приміщень</span></button>
             <button class="view-tab" data-view="diagram" type="button">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2" /><circle cx="18" cy="18" r="2" /><path d="M8 6h7a3 3 0 0 1 3 3v7M6 8v10h10" /></svg>
-              Однолінійна схема
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2" /><circle cx="18" cy="18" r="2" /><path d="M8 6h7a3 3 0 0 1 3 3v7M6 8v10h10" /></svg><span class="button-label">Однолінійна схема</span>
             </button>
             <button class="view-tab" data-view="bom" type="button">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h14M7 12h14M7 19h14" /><circle cx="3" cy="5" r="1" /><circle cx="3" cy="12" r="1" /><circle cx="3" cy="19" r="1" /></svg>
-              Специфікація
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h14M7 12h14M7 19h14" /><circle cx="3" cy="5" r="1" /><circle cx="3" cy="12" r="1" /><circle cx="3" cy="19" r="1" /></svg><span class="button-label">Специфікація</span>
               <span class="tab-badge" id="bomBadge">0</span>
             </button>
             <button class="view-tab" data-view="wires" type="button" aria-label="Відомість з’єднань">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 4v16" /></svg>
-              З’єднання <span class="tab-badge" id="wireBadge">0</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 4v16" /></svg><span class="button-label">З’єднання</span> <span class="tab-badge" id="wireBadge">0</span>
             </button>
             <button class="view-tab" data-view="design" type="button">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h3m2 0h3M8 15h3m2 0h3M8 18h3m2 0h3"/></svg>
-              Розрахунки
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h3m2 0h3M8 15h3m2 0h3M8 18h3m2 0h3"/></svg><span class="button-label">Розрахунки</span>
             </button>
           </div>
 
           <div class="canvas-toolbar" id="canvasToolbar">
             <div class="mobile-toolbar-actions">
               <button class="tool-button wide" id="mobileLibraryButton" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10" /></svg>
-                Інструменти
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10" /></svg><span class="button-label">Інструменти</span>
               </button>
               <button class="tool-button wide" id="mobileInspectorButton" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2" /></svg>
-                Огляд
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2" /></svg><span class="button-label">Огляд</span>
               </button>
             </div>
             <div class="toolbar-group">
@@ -172,16 +166,13 @@
               <button class="tool-button" id="zoomInButton" type="button" title="Збільшити">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6" /><path d="M7 10h6m-3-3v6m5 2 5 5" /></svg>
               </button>
-              <button class="tool-button wide" id="fitButton" type="button" title="Вмістити щит">
-                Вмістити
-              </button>
+              <button class="tool-button wide" id="fitButton" type="button" title="Вмістити щит"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5"/></svg> <span class="button-label">Вмістити</span></button>
             </div>
             <div class="toolbar-spacer"></div>
             <button class="tool-button" id="physicalViewButton" type="button" aria-pressed="false" title="Перемкнути між рівною висотою зображень і реальними габаритами">Рівна висота</button>
 
             <button class="tool-button wide" id="boardSettingsButton" type="button">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 4v6m10 4v6M4 17h16" /></svg>
-              Рейки та модулі
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 4v6m10 4v6M4 17h16" /></svg><span class="button-label">Рейки та модулі</span>
             </button>
           </div>
 
@@ -232,20 +223,20 @@
               </div>
               <div class="canvas-hint" id="canvasHint">
                 <span>Порада</span> Перетягніть пристрій із бібліотеки на вільне місце DIN-рейки
-                <button type="button" aria-label="Закрити підказку">×</button>
+                <button type="button" aria-label="Закрити підказку"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
               </div>
             </div>
           </div>
 
           <div class="view-container" id="floorView" data-view-panel="floor">
-            <div class="document-toolbar floor-toolbar"><div><span class="eyebrow">Приміщення · точки · кабельні траси</span><h2>План приміщень</h2></div><div class="floor-summary" id="floorSummary"></div><div class="document-actions"><button class="button generation-button" type="button" id="generatePanelFromPlan">Перезібрати щит за планом</button><button class="button ghost floor-connect-command" type="button" id="floorConnectMode" aria-pressed="false">З’єднати</button><button class="button ghost" id="floorUndoButton" type="button">↶ Назад</button><button class="button ghost" id="floorRedoButton" type="button">↷ Повторити</button><details class="floor-export-menu"><summary>Експорт</summary><div class="floor-export-options"><button class="button ghost" id="floorCsvButton" type="button">Кабелі CSV</button><button class="button ghost" id="floorSvgButton" type="button">План SVG</button><button class="button ghost" id="floorPrintButton" type="button">Друк / PDF</button></div></details></div></div>
+            <div class="document-toolbar floor-toolbar"><div><span class="eyebrow">Приміщення · точки · кабельні траси</span><h2>План приміщень</h2></div><div class="floor-summary" id="floorSummary"></div><div class="document-actions"><button class="button generation-button" type="button" id="generatePanelFromPlan">Перезібрати щит за планом</button><button class="button ghost floor-connect-command" type="button" id="floorConnectMode" aria-pressed="false">З’єднати</button><button class="button ghost" id="floorUndoButton" type="button"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 7-5 5 5 5M5 12h8a6 6 0 0 1 6 6"/></svg> <span class="button-label">Назад</span></button><button class="button ghost" id="floorRedoButton" type="button"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m15 7 5 5-5 5m4-5h-8a6 6 0 0 0-6 6"/></svg> <span class="button-label">Повторити</span></button><details class="floor-export-menu"><summary>Експорт</summary><div class="floor-export-options"><button class="button ghost" id="floorCsvButton" type="button">Кабелі CSV</button><button class="button ghost" id="floorSvgButton" type="button">План SVG</button><button class="button ghost" id="floorPrintButton" type="button">Друк / PDF</button></div></details></div></div>
             <div class="floor-workspace">
 
-              <div class="floor-stage"><div class="floor-canvas-card"><div class="floor-main-tools"><div class="floor-edit-modes" role="group" aria-label="Режим редагування плану"><button type="button" id="floorPointsMode" aria-pressed="true">Електричні точки</button><button type="button" id="floorGeometryMode" aria-pressed="false">Стіни й кімнати</button><button type="button" id="floorToolsToggle" aria-expanded="false" aria-controls="floorToolsPanel">Параметри</button></div><div class="floor-zoom"><button type="button" id="floorPanMode" aria-pressed="false" title="Переміщення полотна перетягуванням">Рука</button><button type="button" id="floorZoomOut" aria-label="Зменшити план">−</button><output id="floorZoomValue">100%</output><button type="button" id="floorZoomIn" aria-label="Збільшити план">+</button><button type="button" id="floorFitButton">Вмістити</button></div></div>
+              <div class="floor-stage"><div class="floor-canvas-card"><div class="floor-main-tools"><div class="floor-edit-modes" role="group" aria-label="Режим редагування плану"><button type="button" id="floorPointsMode" aria-pressed="true">Електричні точки</button><button type="button" id="floorGeometryMode" aria-pressed="false">Стіни й кімнати</button><button type="button" id="floorToolsToggle" aria-expanded="false" aria-controls="floorToolsPanel">Параметри</button></div><div class="floor-zoom"><button type="button" id="floorPanMode" aria-pressed="false" title="Переміщення полотна перетягуванням">Рука</button><button type="button" id="floorZoomOut" aria-label="Зменшити план"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14"/></svg></button><output id="floorZoomValue">100%</output><button type="button" id="floorZoomIn" aria-label="Збільшити план"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg></button><button type="button" id="floorFitButton">Вмістити</button></div></div>
 
 
 <div id="floorCanvas" tabindex="0" aria-label="Полотно плану приміщень"></div><div class="floor-navigation-help"><span>Ctrl + коліщатко — масштаб · середня кнопка або «Рука» — переміщення · стрілки — зсув · Ctrl+Z — скасувати</span><a href="#floorCableReport">Кабелі ↓</a><a href="#floorPointSchedule">Точки ↓</a></div></div><div class="floor-warnings" id="floorWarnings"></div><section class="floor-report" id="floorCableReport"></section><section class="floor-report" id="floorPointSchedule"></section></div>
-<aside class="floor-tools" id="floorToolsPanel" aria-label="Праві параметри плану"><div class="floor-sidebar-heading"><div><span class="eyebrow">ПЛАН ПРИМІЩЕНЬ</span><h3 id="floorSidebarTitle">Властивості</h3></div><button type="button" id="floorSidebarClose" aria-label="Закрити праву панель">×</button></div><div class="floor-sidebar-commands"><div id="floorQuickPointTools" class="floor-quick-point-tools"><select id="floorQuickPointType" aria-label="Тип нової точки"><option value="socket">Розетка</option><option value="light">Світильник</option><option value="switch">Вимикач</option><option value="equipment">Техніка</option><option value="junction">Доза на стелі</option><option value="junction-wall">Доза на стіні</option></select><button type="button" id="floorQuickAddPoint">+ Точка</button></div><div id="floorWallModeTools" class="floor-wall-mode-tools hidden" role="group" aria-label="Інструменти стін і кімнат"><button type="button" id="floorPencilMode" aria-pressed="false">✎ Олівець</button><button type="button" id="floorAddRoom">+ Кімната</button><button type="button" id="floorQuickDoor">+ Двері</button><button type="button" id="floorQuickWindow">+ Вікно</button></div><div id="floorConnectionTools" class="floor-connection-tools hidden"><select id="floorConnectionPattern" aria-label="Спосіб з’єднання"><option value="chain">Шлейф: точка → наступна</option><option value="radial">Окремі лінії від щита</option></select></div></div><div class="floor-selection-bar" aria-label="Дії з вибраним об’єктом"><div class="floor-selection-info"><strong id="floorSelectionLabel"></strong><small id="floorSelectionDetail"></small></div><div id="floorQuickRoomFields" class="floor-quick-fields hidden"><label>Ширина, м<input type="number" id="floorQuickWidth" min="0.4" max="50" step="0.1"/></label><label>Глибина, м<input type="number" id="floorQuickDepth" min="0.4" max="50" step="0.1"/></label></div><label id="floorQuickWallField" class="floor-quick-fields hidden">Довжина, м<input type="number" id="floorQuickLength" min="0.15" max="50" step="0.1"/></label><label id="floorQuickHeightField" class="floor-quick-fields hidden">Висота, м<input type="number" id="floorQuickHeight" min="0" max="10" step="0.05"/></label><button type="button" id="floorQuickApply">Застосувати</button><div class="floor-context-actions"><button type="button" id="floorQuickDuplicate">Копіювати</button><button type="button" id="floorSplitWall">+ Кут</button><button type="button" id="floorRestoreWall" class="hidden">Відновити стіну</button><button type="button" id="floorQuickProperties">Властивості</button><button type="button" id="floorQuickDelete" class="danger-action">Видалити</button></div></div><section class="floor-pencil-toolbar hidden" id="floorPencilToolbar" aria-label="Малювання стін">
+<aside class="floor-tools" id="floorToolsPanel" aria-label="Праві параметри плану"><div class="floor-sidebar-heading"><div><span class="eyebrow">ПЛАН ПРИМІЩЕНЬ</span><h3 id="floorSidebarTitle">Властивості</h3></div><button type="button" id="floorSidebarClose" aria-label="Закрити праву панель"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div><div class="floor-sidebar-commands"><div id="floorQuickPointTools" class="floor-quick-point-tools"><select id="floorQuickPointType" aria-label="Тип нової точки"><option value="socket">Розетка</option><option value="light">Світильник</option><option value="switch">Вимикач</option><option value="equipment">Техніка</option><option value="junction">Доза на стелі</option><option value="junction-wall">Доза на стіні</option></select><button type="button" id="floorQuickAddPoint">+ Точка</button></div><div id="floorWallModeTools" class="floor-wall-mode-tools hidden" role="group" aria-label="Інструменти стін і кімнат"><button type="button" id="floorPencilMode" aria-pressed="false"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"/></svg> <span class="button-label">Олівець</span></button><button type="button" id="floorAddRoom"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg> <span class="button-label">Кімната</span></button><button type="button" id="floorQuickDoor">+ Двері</button><button type="button" id="floorQuickWindow">+ Вікно</button></div><div id="floorConnectionTools" class="floor-connection-tools hidden"><select id="floorConnectionPattern" aria-label="Спосіб з’єднання"><option value="chain">Шлейф: точка → наступна</option><option value="radial">Окремі лінії від щита</option></select></div></div><div class="floor-selection-bar" aria-label="Дії з вибраним об’єктом"><div class="floor-selection-info"><strong id="floorSelectionLabel"></strong><small id="floorSelectionDetail"></small></div><div id="floorQuickRoomFields" class="floor-quick-fields hidden"><label>Ширина, м<input type="number" id="floorQuickWidth" min="0.4" max="50" step="0.1"/></label><label>Глибина, м<input type="number" id="floorQuickDepth" min="0.4" max="50" step="0.1"/></label></div><label id="floorQuickWallField" class="floor-quick-fields hidden">Довжина, м<input type="number" id="floorQuickLength" min="0.15" max="50" step="0.1"/></label><label id="floorQuickHeightField" class="floor-quick-fields hidden">Висота, м<input type="number" id="floorQuickHeight" min="0" max="10" step="0.05"/></label><button type="button" id="floorQuickApply">Застосувати</button><div class="floor-context-actions"><button type="button" id="floorQuickDuplicate">Копіювати</button><button type="button" id="floorSplitWall"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg> <span class="button-label">Кут</span></button><button type="button" id="floorRestoreWall" class="hidden">Відновити стіну</button><button type="button" id="floorQuickProperties">Властивості</button><button type="button" id="floorQuickDelete" class="danger-action">Видалити</button></div></div><section class="floor-pencil-toolbar hidden" id="floorPencilToolbar" aria-label="Малювання стін">
   <div class="pencil-instruction"><strong>Намалюйте контур кімнати</strong><span>Клацайте кути або тягніть стіни. Усередині кімнати замкнений контур виділяє нову кімнату. Натисніть перший кут чи Enter, щоб замкнути й зберегти кімнату. Alt — похила стіна; Backspace — крок назад; Esc — скасувати контур.</span></div>
   <div class="pencil-options"><label class="check-label"><input type="checkbox" id="floorPencilOrthogonal" checked/> Прямі кути</label><label class="check-label"><input type="checkbox" id="floorPencilSnap" checked/> Прив’язка</label><label>Крок <select id="floorPencilStep" aria-label="Крок малювання стін"><option value="0.05">5 см</option><option value="0.1" selected>10 см</option><option value="0.25">25 см</option><option value="0.5">50 см</option></select></label></div>
   <div class="pencil-actions"><button type="button" id="floorPencilFinish" class="pencil-primary" disabled>Замкнути кімнату</button><button type="button" id="floorPencilCancel" disabled>Скасувати контур</button><button type="button" id="floorPencilBlank" title="Прибрати кімнати й точки плану. Ctrl+Z повертає попередній план.">Чисте полотно</button><button type="button" id="floorPencilExpand">Більше полотна</button></div>
@@ -307,7 +298,7 @@
                 Друк / PDF
               </button></div>
             </div>
-            <div class="sld-controls"><div class="sld-pages-control"><button type="button" id="diagramPrevPage" aria-label="Попередній аркуш">‹</button><select id="diagramPageInput" aria-label="Аркуш схеми"></select><button type="button" id="diagramNextPage" aria-label="Наступний аркуш">›</button></div><div class="sld-zoom-control"><button type="button" id="diagramZoomOut" aria-label="Зменшити схему">−</button><output id="diagramZoomValue">100%</output><button type="button" id="diagramZoomIn" aria-label="Збільшити схему">+</button><button type="button" id="diagramFitButton">Аркуш</button><button type="button" id="diagramWidthButton">Ширина</button></div></div>
+            <div class="sld-controls"><div class="sld-pages-control"><button type="button" id="diagramPrevPage" aria-label="Попередній аркуш"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m14 6-6 6 6 6"/></svg></button><select id="diagramPageInput" aria-label="Аркуш схеми"></select><button type="button" id="diagramNextPage" aria-label="Наступний аркуш"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m10 6 6 6-6 6"/></svg></button></div><div class="sld-zoom-control"><button type="button" id="diagramZoomOut" aria-label="Зменшити схему"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14"/></svg></button><output id="diagramZoomValue">100%</output><button type="button" id="diagramZoomIn" aria-label="Збільшити схему"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg></button><button type="button" id="diagramFitButton">Аркуш</button><button type="button" id="diagramWidthButton">Ширина</button></div></div>
             <div class="sld-overview" id="diagramOverview"></div>
             <div class="diagram-paper" id="diagramPaper"></div>
             <div id="diagramDetails"></div>
@@ -440,7 +431,7 @@
             </section>
 
             <section class="inspector-section hidden" id="wireInspector">
-              <div class="section-title-row"><div><span class="eyebrow">З’єднання</span><h2 id="wireInspectorTitle">Провід</h2></div><button class="icon-button danger" id="deleteWireButton" type="button" aria-label="Видалити провід">×</button></div>
+              <div class="section-title-row"><div><span class="eyebrow">З’єднання</span><h2 id="wireInspectorTitle">Провід</h2></div><button class="icon-button danger" id="deleteWireButton" type="button" aria-label="Видалити провід"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
               <div class="wire-address" id="wireAddress"></div>
               <div class="form-grid">
                 <label class="field full"><span>Позначення проводу</span><input id="wireLabelInput" maxlength="32" /></label>
@@ -460,7 +451,7 @@
             </section>
 
             <section class="inspector-section hidden" id="busbarInspector">
-              <div class="section-title-row"><div><span class="eyebrow">Розподільна шина</span><h2 id="busbarInspectorTitle">Шина</h2></div><button class="icon-button danger" id="deleteBusbarButton" type="button" aria-label="Видалити шину">×</button></div>
+              <div class="section-title-row"><div><span class="eyebrow">Розподільна шина</span><h2 id="busbarInspectorTitle">Шина</h2></div><button class="icon-button danger" id="deleteBusbarButton" type="button" aria-label="Видалити шину"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
               <div class="form-grid">
                 <label class="field full"><span>Позначення</span><input id="busbarLabelInput" maxlength="32" /></label>
                 <label class="field"><span>Клем</span><input id="busbarCountInput" type="number" min="2" max="24" /></label>
@@ -477,7 +468,7 @@
             </section>
 
             <section class="inspector-section hidden" id="combInspector">
-              <div class="section-title-row"><div><span class="eyebrow">Монтажна шина</span><h2 id="combInspectorTitle">Гребінка</h2></div><button class="icon-button danger" id="deleteCombButton" type="button" aria-label="Видалити гребінку">×</button></div>
+              <div class="section-title-row"><div><span class="eyebrow">Монтажна шина</span><h2 id="combInspectorTitle">Гребінка</h2></div><button class="icon-button danger" id="deleteCombButton" type="button" aria-label="Видалити гребінку"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
               <div id="combMembers" class="terminal-assignment"></div>
             </section>
 
@@ -510,7 +501,7 @@
 
     <div class="modal-backdrop hidden" id="templateModal" role="dialog" aria-modal="true" aria-labelledby="templateModalTitle">
       <div class="modal-card template-modal-card">
-        <div class="modal-header"><div><span class="eyebrow">Почніть із готової компоновки</span><h2 id="templateModalTitle">Оберіть типовий щит</h2></div><button class="icon-button modal-close" id="closeTemplateChooserButton" type="button" aria-label="Закрити">×</button></div>
+        <div class="modal-header"><div><span class="eyebrow">Почніть із готової компоновки</span><h2 id="templateModalTitle">Оберіть типовий щит</h2></div><button class="icon-button modal-close" id="closeTemplateChooserButton" type="button" aria-label="Закрити"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
         <div class="template-modal-body">
           <p class="template-intro">Чотири редаговані варіанти з проводкою та розрахунковою відомістю. Для перевірки конкретного об’єкта додайте фактичні дані вводу, навантажень, кабелів і струмів КЗ.</p>
           <div class="template-grid" id="templateCards"></div>
@@ -540,7 +531,7 @@
       <div class="modal-card projects-modal-card">
         <div class="modal-header">
           <div><span class="eyebrow">Локальне сховище</span><h2 id="projectModalTitle">Мої проєкти</h2></div>
-          <button class="icon-button modal-close" type="button" aria-label="Закрити">×</button>
+          <button class="icon-button modal-close" type="button" aria-label="Закрити"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
         </div>
         <div class="project-list" id="projectList"></div>
         <details class="project-trash"><summary>Кошик · <span id="projectTrashCount">0</span></summary><div id="projectTrashList"></div></details>
@@ -550,7 +541,7 @@
             Імпортувати JSON
             <input id="importInput" type="file" accept="application/json,.json" />
           </label>
-          <button class="button primary" id="newProjectModalButton" type="button">+ Новий проєкт</button>
+          <button class="button primary" id="newProjectModalButton" type="button"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg> <span class="button-label">Новий проєкт</span></button>
         </div>
       </div>
     </div>
@@ -559,7 +550,7 @@
       <div class="modal-card settings-modal-card">
         <div class="modal-header">
           <div><span class="eyebrow">Конфігурація</span><h2 id="settingsModalTitle">Рейки та модулі</h2></div>
-          <button class="icon-button modal-close" type="button" aria-label="Закрити">×</button>
+          <button class="icon-button modal-close" type="button" aria-label="Закрити"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
         </div>
         <div class="form-grid modal-form">
           <label class="field full"><span>Назва щита</span><input id="boardNameInput" type="text" /></label>
@@ -600,7 +591,7 @@
 
     <div class="modal-backdrop hidden" id="combModal" role="dialog" aria-modal="true" aria-labelledby="combModalTitle">
       <div class="modal-card settings-modal-card">
-        <div class="modal-header"><div><span class="eyebrow">Монтаж</span><h2 id="combModalTitle">Додати гребінку</h2></div><button class="icon-button modal-close" type="button" aria-label="Закрити">×</button></div>
+        <div class="modal-header"><div><span class="eyebrow">Монтаж</span><h2 id="combModalTitle">Додати гребінку</h2></div><button class="icon-button modal-close" type="button" aria-label="Закрити"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
         <div class="form-grid modal-form">
           <label class="field full"><span>Позначення</span><input id="combLabelInput" /></label>
           <label class="field"><span>DIN-рейка</span><select id="combRowInput"></select></label>
@@ -619,7 +610,7 @@
       <div class="modal-card compact-modal-card">
         <div class="modal-header">
           <div><span class="eyebrow">Проєкт</span><h2 id="renameModalTitle">Перейменувати</h2></div>
-          <button class="icon-button modal-close" type="button" aria-label="Закрити">×</button>
+          <button class="icon-button modal-close" type="button" aria-label="Закрити"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
         </div>
         <label class="field"><span>Назва проєкту</span><input id="renameProjectInput" type="text" /></label>
         <div class="modal-footer"><button class="button primary" id="renameProjectSaveButton" type="button">Зберегти</button></div>
@@ -628,7 +619,7 @@
 
     <div class="modal-backdrop hidden" id="generationModal" role="dialog" aria-modal="true" aria-labelledby="generationTitle">
       <div class="modal-card generation-modal-card">
-        <div class="modal-header"><div><span class="eyebrow">Автопобудова · попередній перегляд</span><h2 id="generationTitle"></h2></div><button class="icon-button modal-close" type="button" aria-label="Закрити">×</button></div>
+        <div class="modal-header"><div><span class="eyebrow">Автопобудова · попередній перегляд</span><h2 id="generationTitle"></h2></div><button class="icon-button modal-close" type="button" aria-label="Закрити"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
         <div class="generation-body"><p id="generationDescription"></p><div class="generation-options" id="generationOptions"></div><strong id="generationSummary"></strong><div class="generation-table-wrap"><table id="generationTable"></table></div><p id="generationError" role="alert"></p><ul id="generationNotes"></ul><p class="generation-backup-note">Перед застосуванням поточний проєкт автоматично збережеться окремою копією в «Мої проєкти». Зміну можна повернути кнопкою «Назад».</p></div>
         <div class="modal-footer"><button class="button ghost modal-close" type="button">Скасувати</button><button class="button generation-button" id="generationApply" type="button">Застосувати автопобудову</button></div>
       </div>
@@ -636,41 +627,41 @@
 
     <div class="toast-region" id="toastRegion" aria-live="polite"></div>
 
-    <div class="modal-backdrop hidden" id="formDraftsModal"><section class="modal-card form-drafts-modal" role="dialog" aria-modal="true" aria-labelledby="formDraftsTitle"><button type="button" class="modal-close" data-close-modal aria-label="Закрити">×</button><h2 id="formDraftsTitle">Незастосовані зміни</h2><p id="formDraftsStorage"></p><ul id="formDraftsList"></ul></section></div>
-    <script defer src="viewport.js?v=224"></script>
-    <script defer src="control-devices.js?v=224"></script>
-    <script defer src="mechanical.js?v=224"></script>
-    <script defer src="vendor/polygon-clipping-0.15.7.js?v=224"></script>
-    <script defer src="floor-geometry.js?v=224"></script>
-    <script defer src="floor-plan.js?v=224"></script>
-    <script defer src="floor-partition.js?v=224"></script>
-    <script defer src="floor-pencil.js?v=224"></script>
-    <script defer src="floor-svg.js?v=224"></script>
-    <script defer src="electrical.js?v=224"></script>
-    <script defer src="design.js?v=224"></script>
-    <script defer src="project-generation.js?v=224"></script>
-    <script defer src="cable-report.js?v=224"></script>
-    <script defer src="cable-report-ui.js?v=224"></script>
-    <script defer src="schematic.js?v=224"></script>
-    <script defer src="wiring.js?v=224"></script>
-    <script defer src="project-issues.js?v=224"></script>
-    <script defer src="project-issues-ui.js?v=224"></script>
-    <script defer src="templates-ui.js?v=224"></script>
-    <script defer src="controls-ui.js?v=224"></script>
-    <script defer src="rail-layout.js?v=224"></script>
-    <script defer src="protection-face.js?v=224"></script>
-    <script defer src="device-visuals.js?v=224"></script>
-    <script defer src="mechanical-ui.js?v=224"></script>
-    <script defer src="schematic-ui.js?v=224"></script>
-    <script defer src="form-drafts.js?v=224"></script>
-    <script defer src="floor-plan-ui.js?v=224"></script>
-    <script defer src="floor-geometry-ui.js?v=224"></script>
-    <script defer src="floor-ux-ui.js?v=224"></script>
-    <script defer src="floor-forms-ui.js?v=224"></script>
-    <script defer src="floor-pencil-ui.js?v=224"></script>
-    <script defer src="project-store.js?v=224"></script>
-    <script defer src="ui-help.js?v=224"></script>
-    <script defer src="project-generation-ui.js?v=224"></script>
-    <script defer src="app.js?v=224"></script>
+    <div class="modal-backdrop hidden" id="formDraftsModal"><section class="modal-card form-drafts-modal" role="dialog" aria-modal="true" aria-labelledby="formDraftsTitle"><button type="button" class="modal-close" data-close-modal aria-label="Закрити"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button><h2 id="formDraftsTitle">Незастосовані зміни</h2><p id="formDraftsStorage"></p><ul id="formDraftsList"></ul></section></div>
+    <script defer src="viewport.js?v=228"></script>
+    <script defer src="control-devices.js?v=228"></script>
+    <script defer src="mechanical.js?v=228"></script>
+    <script defer src="vendor/polygon-clipping-0.15.7.js?v=228"></script>
+    <script defer src="floor-geometry.js?v=228"></script>
+    <script defer src="floor-plan.js?v=228"></script>
+    <script defer src="floor-partition.js?v=228"></script>
+    <script defer src="floor-pencil.js?v=228"></script>
+    <script defer src="floor-svg.js?v=228"></script>
+    <script defer src="electrical.js?v=228"></script>
+    <script defer src="design.js?v=228"></script>
+    <script defer src="project-generation.js?v=228"></script>
+    <script defer src="cable-report.js?v=228"></script>
+    <script defer src="cable-report-ui.js?v=228"></script>
+    <script defer src="schematic.js?v=228"></script>
+    <script defer src="wiring.js?v=228"></script>
+    <script defer src="project-issues.js?v=228"></script>
+    <script defer src="project-issues-ui.js?v=228"></script>
+    <script defer src="templates-ui.js?v=228"></script>
+    <script defer src="controls-ui.js?v=228"></script>
+    <script defer src="rail-layout.js?v=228"></script>
+    <script defer src="protection-face.js?v=228"></script>
+    <script defer src="device-visuals.js?v=228"></script>
+    <script defer src="mechanical-ui.js?v=228"></script>
+    <script defer src="schematic-ui.js?v=228"></script>
+    <script defer src="form-drafts.js?v=228"></script>
+    <script defer src="floor-plan-ui.js?v=228"></script>
+    <script defer src="floor-geometry-ui.js?v=228"></script>
+    <script defer src="floor-ux-ui.js?v=228"></script>
+    <script defer src="floor-forms-ui.js?v=228"></script>
+    <script defer src="floor-pencil-ui.js?v=228"></script>
+    <script defer src="project-store.js?v=228"></script>
+    <script defer src="ui-help.js?v=228"></script>
+    <script defer src="project-generation-ui.js?v=228"></script>
+    <script defer src="app.js?v=228"></script>
   </body>
 </html>

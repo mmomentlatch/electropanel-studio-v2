@@ -224,7 +224,7 @@ function renderLibrary() {
     <article class="component-card" draggable="true" data-component-type="${component.type}" title="Перетягніть на DIN-рейку">
       <div class="component-preview type-${component.face} ${component.photo ? "has-photo" : ""}" style="--component-accent:${component.accent};--photo-scale:${component.photoScale || 1}">${component.photo ? componentArtworkMarkup(component) : ""}</div>
       <div class="component-copy"><strong>${component.name}</strong><span>${component.detail} · ${getComponent(component.type).modules} місць</span><small class="component-dimensions">${mmText(M.dimensions({ type: component.type, geometryId: M.defaultProfile(component.type) }))}${M.defaultProfile(component.type) ? " · каталог" : " · орієнтовно"}</small></div>
-      <button class="add-component" type="button" data-add-component="${component.type}" aria-label="Додати ${component.name}">+</button>
+      <button class="add-component" type="button" data-add-component="${component.type}" aria-label="Додати ${component.name}"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg></button>
     </article>`).join("") : `<div class="component-list-empty">Нічого не знайдено.<br>Спробуйте іншу назву або категорію.</div>`;
 
   $$("[data-category]").forEach((button) => button.addEventListener("click", () => { activeCategory = button.dataset.category; renderLibrary(); }));

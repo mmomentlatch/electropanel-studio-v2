@@ -158,7 +158,6 @@
   .wire-mode-button { font-size: 10px !important; padding: 0 8px !important; }
   .wire-mode-button svg { width: 15px; }
   #projectsButton { display: inline-flex; width: 32px; font-size: 0; padding: 0; }
-  #projectsButton::before { content: "▦"; font-size: 19px; }
   .topbar { grid-template-columns: 45px minmax(70px, 1fr) 124px; }
 }
 @media (max-width: 620px) {
