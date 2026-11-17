@@ -14,6 +14,7 @@ function revealIssueField(input) {
 function navigateProjectIssue(issue) {
   const target = PanelProjectIssues.target(project, issue); closeDrawers();
   if (target.view === "floor" && project.floorPlan) {
+    if (target.field === "floorCircuitsMode") { switchView("floor"); openFloorCircuits(); revealIssueField($("#floorCircuitsMode")); return; }
     switchView("floor"); floorCircuitId = target.circuitId || ""; requestFloorSidebar("settings"); renderFloorPlan();
     revealIssueField($(`#${target.field}`)); return;
   }

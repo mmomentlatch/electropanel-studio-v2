@@ -220,7 +220,9 @@
     // Keep the full canonical snapshot: no hash collisions or reliance on updatedAt.
     const design = copy(p.design || {}); delete design.approval;
     const board = copy(p.board); delete board.fullEnclosureView; delete board.physicalView;
-    return JSON.stringify({ board, devices: p.devices, busbars: p.busbars, wires: p.wires, combs: p.combs, ...(p.consumers?.length ? { consumers: p.consumers } : {}), ...(p.floorPlan ? { floorPlan: p.floorPlan } : {}), design });
+    const floorPlan = p.floorPlan ? copy(p.floorPlan) : null;
+    if (floorPlan) for (const key of ["circuits", "excludedCircuitIds"]) if (!floorPlan[key]?.length) delete floorPlan[key];
+    return JSON.stringify({ board, devices: p.devices, busbars: p.busbars, wires: p.wires, combs: p.combs, ...(p.consumers?.length ? { consumers: p.consumers } : {}), ...(floorPlan ? { floorPlan } : {}), design });
   }
   function approvalCurrent(p) { return Boolean(p.design?.approval && p.design.approval.fingerprint === fingerprint(p)); }
   function approveLayout(p, name) {
@@ -238,6 +240,11 @@
     const add = (level, code, text, entityId = "board") => issues.push({ level, code, text, entityId });
     const pending = (condition, code, text, entityId) => { if (!condition) add("pending", code, text, entityId); };
     const check = (condition, code, text, entityId) => { if (!condition) add("error", code, text, entityId); };
+    if (p.floorPlan) {
+      const ids = new Set(F.branches(p).map((circuit) => circuit.id));
+      pending(!(p.floorPlan.circuits?.length || p.floorPlan.excludedCircuitIds?.length), "floor-circuits-pending", "Кола плану змінені окремо від щита. Перегляньте їх і оновіть щит кнопкою «Перезібрати щит за планом».");
+      pending(!p.floorPlan.points.some((point) => ["socket", "light", "equipment", "junction"].includes(point.type) && !ids.has(point.circuitId)), "floor-point-circuit", "Є точки без електричного кола. Виберіть наявне або створіть нове коло у властивостях точки.");
+    }
     const incoming = p.devices.find((d) => d.type.startsWith("main-"));
     check(p.devices.filter((d) => d.type.startsWith("main-")).length === 1, "incoming-count", "Цей розрахунковий профіль підтримує один ввідний апарат.");
     p.devices.filter((d) => !isBranch(d) && Number(d.load) > 0).forEach((d) => add("error", "unmodelled-load", `${d.label}: навантаження не включене до розрахункових кіл.`, d.id));

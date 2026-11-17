@@ -86,7 +86,7 @@ function renderFloorPlan() {
   const cableSettingsOpen = $("#floorCableReport").querySelector("[data-cable-settings]")?.open;
   if (!plan.rooms.some((room) => room.id === floorRoomId)) floorRoomId = plan.rooms[0]?.id || "";
   if (floorGeometryEditing && plan.geometryMode !== "free") floorGeometryEditing = false;
-  if (floorCircuitId && !report.circuits.some((c) => c.deviceId === floorCircuitId)) floorCircuitId = "";
+  if (floorCircuitId && !F.branches(project).some((c) => c.id === floorCircuitId)) floorCircuitId = "";
   $("#floorCeilingInput").value = plan.ceilingHeightM;
   $("#floorRoutingInput").value = plan.routing;
   $("#floorWallInput").value = plan.wallThicknessM;
@@ -100,12 +100,12 @@ function renderFloorPlan() {
   $("#floorAutoLengthsInput").disabled = !project.design;
   $("#floorRoomSelect").innerHTML = plan.rooms.map((room) => `<option value="${escapeHtml(room.id)}">${escapeHtml(room.name)}</option>`).join("");
   $("#floorRoomSelect").value = floorRoomId;
-  $("#floorCircuitFilter").innerHTML = '<option value="">Усі кола</option>' + report.circuits.map((circuit) => `<option value="${escapeHtml(circuit.deviceId)}">${escapeHtml(circuit.label)} · ${escapeHtml(circuit.name)}</option>`).join("");
+  $("#floorCircuitFilter").innerHTML = '<option value="">Усі кола</option>' + F.branches(project).map((circuit) => `<option value="${escapeHtml(circuit.id)}">${escapeHtml(circuit.label)} · ${escapeHtml(circuit.name)}${circuit.planned ? " · план" : ""}</option>`).join("");
   $("#floorCircuitFilter").value = floorCircuitId;
   $("#floorSummary").innerHTML = `<article><span>Площа всередині</span><strong>${floorNumber(report.arrangement.areaM2)} <small>м²</small></strong></article><article><span>Електричні точки</span><strong>${plan.points.filter((p) => p.type !== "panel").length} <small>точок</small></strong></article><article><span>Кабель із запасом ${plan.reservePercent}%</span><strong>≈ ${report.totalPurchaseM} <small>м</small></strong></article><article><span>Вихідні дані</span><strong class="floor-data-state">${plan.geometryConfirmed ? "Підтверджені обміри" : "Типовий ескіз"}</strong></article>`;
   $("#floorWarnings").innerHTML = report.warnings.map((text) => `<p>${escapeHtml(text)}</p>`).join("");
   $("#floorCableReport").innerHTML = `<div class="floor-report-heading"><h3>Кабельна відомість</h3><span>Живлення від щита або вибраної дози. Натисніть трасу, щоб вставити дозу; спільні ділянки враховані один раз.</span></div><div class="floor-table-scroll"><table class="floor-table"><thead><tr><th>Коло</th><th>Переріз</th><th>Точок</th><th>Горизонталь</th><th>Вертикаль</th><th>Припуски</th><th>Запас</th><th>Закупівля</th><th>Найдовший шлях¹</th></tr></thead><tbody>${report.circuits.map((c) => `<tr class="${c.deviceId === floorCircuitId ? "active" : ""}"><td><button type="button" data-floor-circuit="${escapeHtml(c.deviceId)}" style="--circuit-color:${c.color}"><i></i><strong>${escapeHtml(c.label)}</strong> ${escapeHtml(c.name)}</button></td><td>${c.section ? `${floorNumber(c.section)} мм²` : "уточнити"}</td><td>${c.pointCount}</td><td>${floorNumber(c.horizontalM)} м</td><td>${floorNumber(c.verticalM)} м</td><td>${floorNumber(c.allowanceM)} м</td><td>${floorNumber(c.reserveM)} м</td><td><strong>${c.purchaseM} м</strong></td><td>≈ ${floorNumber(c.longestPathM)} м</td></tr>`).join("") || '<tr><td colspan="9">Прив’яжіть точки плану до автоматів або дифавтоматів щита.</td></tr>'}</tbody></table></div><p class="floor-footnote">¹ Для розрахунків передається найдовший шлях живлення з припусками, без закупівельного запасу. Для освітлення враховано ділянку до вимикача за однакового перерізу. Номінали та придатність кабелю не визначаються лише цим метражем.</p><div class="floor-sync-row"><button type="button" class="button primary" id="floorSyncButton" ${project.design && report.circuits.length ? "" : "disabled"}>Передати довжини до розрахунків</button><span>${plan.syncWithCircuits ? "Зв’язок увімкнено: подальші зміни плану оновлюють довжини кіл." : "Метраж розраховується автоматично. Передавання до електричних розрахунків вмикається цією кнопкою."}</span></div>`;
-  $("#floorPointSchedule").innerHTML = `<h3>Розміщення та висоти точок</h3><div class="floor-table-scroll"><table class="floor-table"><thead><tr><th>Позначення</th><th>Тип / назва</th><th>Приміщення</th><th>${plan.geometryMode === "free" ? "X / Y від габаритної межі" : "Від лівої / верхньої стіни"}</th><th>Висота</th><th>Коло</th><th>Монтаж</th><th>Траса від</th></tr></thead><tbody>${plan.points.map((point) => { const room = report.arrangement.rooms.find((item) => item.id === point.roomId), circuit = project.devices.find((d) => d.id === point.circuitId); return `<tr><td><button type="button" data-floor-select="${escapeHtml(point.id)}">${escapeHtml(point.label)}</button></td><td>${escapeHtml(point.name)}</td><td>${escapeHtml(room.name)}</td><td>${floorNumber(point.u * room.widthM)} / ${floorNumber(point.v * room.depthM)} м</td><td>${floorNumber(F.pointHeight(plan, point))} м</td><td>${escapeHtml(circuit?.label || (point.type === "panel" ? "Ввід" : "не призначено"))}</td><td>${point.type === "junction" ? F.junctionMounting(plan, point) === "ceiling" ? "На стелі" : "На стіні" : "—"}</td><td>${escapeHtml(F.sourceFor(plan, point)?.label || "—")}</td></tr>`; }).join("")}</tbody></table></div>`;
+  $("#floorPointSchedule").innerHTML = `<h3>Розміщення та висоти точок</h3><div class="floor-table-scroll"><table class="floor-table"><thead><tr><th>Позначення</th><th>Тип / назва</th><th>Приміщення</th><th>${plan.geometryMode === "free" ? "X / Y від габаритної межі" : "Від лівої / верхньої стіни"}</th><th>Висота</th><th>Коло</th><th>Монтаж</th><th>Траса від</th></tr></thead><tbody>${plan.points.map((point) => { const room = report.arrangement.rooms.find((item) => item.id === point.roomId), circuit = F.branches(project).find((d) => d.id === point.circuitId); return `<tr><td><button type="button" data-floor-select="${escapeHtml(point.id)}">${escapeHtml(point.label)}</button></td><td>${escapeHtml(point.name)}</td><td>${escapeHtml(room.name)}</td><td>${floorNumber(point.u * room.widthM)} / ${floorNumber(point.v * room.depthM)} м</td><td>${floorNumber(F.pointHeight(plan, point))} м</td><td>${escapeHtml(circuit?.label || (point.type === "panel" ? "Ввід" : "не призначено"))}</td><td>${point.type === "junction" ? F.junctionMounting(plan, point) === "ceiling" ? "На стелі" : "На стіні" : "—"}</td><td>${escapeHtml(F.sourceFor(plan, point)?.label || "—")}</td></tr>`; }).join("")}</tbody></table></div>`;
   const completeCircuits = report.circuits.filter((c) => !c.incomplete), sum = (key) => floorNumber(completeCircuits.reduce((total, c) => total + c[key], 0));
   $("#floorCableReport").innerHTML = $("#floorCableReport").innerHTML.replace("</tbody>", `</tbody><tfoot><tr><th colspan="2">${quantities.cableTotals.missing ? "Разом за повними колами" : "Разом"}</th><td>${sum("pointCount")}</td><td>${sum("horizontalM")} м</td><td>${sum("verticalM")} м</td><td>${sum("allowanceM")} м</td><td>${sum("reserveM")} м</td><td><strong>${sum("purchaseM")} м</strong></td><td>—</td></tr></tfoot>`);
   if (report.circuits.some((c) => c.incomplete)) {
@@ -113,7 +113,9 @@ function renderFloorPlan() {
     report.circuits.filter((c) => c.incomplete).forEach((c) => { const row = $("#floorCableReport tbody").querySelector(`[data-floor-circuit="${CSS.escape(c.deviceId)}"]`).closest("tr"); row.cells[7].textContent = "Неповний метраж"; row.cells[8].textContent = "—"; });
   }
   $("#floorCableReport").innerHTML += cableSummaryMarkup(quantities, { includeWires: false, settingsOpen: cableSettingsOpen });
-  restoreFloorForm("settings"); renderFloorRoom(); renderFloorPoint(); renderFloorGeometry(); renderFloorUX(); renderFloorPencil(); renderFloorCanvas();
+  restoreFloorForm("settings"); renderFloorRoom(); renderFloorPoint(); renderFloorGeometry(); renderFloorUX(); renderFloorPencil();
+  if (typeof renderFloorCircuits === "function") renderFloorCircuits(report);
+  renderFloorCanvas();
 }
 function renderFloorRoom() {
   if (!project.floorPlan) return;
@@ -217,14 +219,15 @@ function initFloorJunctionConnections() {
     renderFloorJunctionConnections(); recordFloorFormEdit("point");
   }));
 }
-function renderFloorSources(point, circuitId) {
+function renderFloorSources(point, circuitId, resetInvalid = false) {
   const select = $("#floorPointSource"), plan = project.floorPlan;
   $("#floorSourceField").classList.toggle("hidden", point.type === "panel");
   const defaultName = point.type === "switch" ? "Від світильника (ділянка керування)" : "Безпосередньо від щита";
   select.innerHTML = `<option value="">${defaultName}</option>` + F.supplyOptions(plan, point, circuitId).map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.label)} · ${escapeHtml(p.name)}</option>`).join("");
-  if (point.supplyFromId && !F.supplyOptions(plan, point, circuitId).some((p) => p.id === point.supplyFromId)) select.innerHTML += `<option value="${escapeHtml(point.supplyFromId)}">Перевірте джерело: інше коло</option>`;
-  select.value = point.supplyFromId || "";
-  $("#floorSourceHelp").textContent = "Виберіть щит, дозу або попередню точку цього кола. Мишкою зв’язки задаються кнопкою «З’єднати»: шлейфом або окремими лініями від щита.";
+  const invalid = point.supplyFromId && !F.supplyOptions(plan, point, circuitId).some((p) => p.id === point.supplyFromId);
+  if (invalid && !resetInvalid) select.innerHTML += `<option value="${escapeHtml(point.supplyFromId)}">Перевірте джерело: інше коло</option>`;
+  select.value = invalid && resetInvalid ? "" : point.supplyFromId || "";
+  $("#floorSourceHelp").textContent = "Для траси потрібні коло та джерело живлення. Після вибору натисніть «Застосувати». Щит, доза й попередня точка задаються тут або мишкою кнопкою «З’єднати».";
 }
 function selectFloorPoint(id) {
   floorJunctionDraft = null;
@@ -264,6 +267,7 @@ function saveFloorPointValues() {
   if (point.type === "switch") { point.controlsId = $("#floorPointControls").value; point.circuitId = next.points.find((p) => p.id === point.controlsId)?.circuitId || ""; }
   if (point.type !== "panel") point.supplyFromId = $("#floorPointSource").value;
   if (point.type === "light") next.points.filter((p) => p.controlsId === point.id).forEach((p) => { p.circuitId = point.circuitId; });
+  if (point.circuitId !== project.floorPlan.points.find((p) => p.id === point.id)?.circuitId) next = F.assignCircuit({ ...project, floorPlan: next }, [point.id], point.circuitId);
   delete point.placementReview;
   if (point.type === "junction") {
     try {
@@ -405,7 +409,7 @@ function initFloorPlan() {
   });
   $("#floorPointCircuit").addEventListener("change", () => {
     const point = project.floorPlan.points.find((p) => p.id === floorSelectedId), circuitId = $("#floorPointCircuit").value;
-    if (point) renderFloorSources(point, circuitId);
+    if (point) renderFloorSources(point, circuitId, true);
     if (point?.type === "junction" && floorJunctionDraft) {
       floorJunctionDraft.circuitId = circuitId;
       floorJunctionDraft.changed = true;

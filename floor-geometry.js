@@ -597,19 +597,20 @@
     if (!plan.points.some((p) => p.type === "panel")) plan.points.push({ id: uid(), type: "panel", label: "Щ1", name: "Щиток", roomId, u: 0, v: .5, heightM: 1.5, circuitId: "" });
     plan.geometryConfirmed = false; return normalize(plan);
   }
-  function connections(plan, rooms = layout(plan).rooms) {
+  function connections(plan, rooms = layout(plan).rooms, { throughWalls = false } = {}) {
     const links = [];
     rooms.forEach((room, ri) => edgesOf(room).forEach(({ a, b, wall, index: i }) => {
       rooms.slice(ri + 1).forEach((other) => edgesOf(other).forEach(({ a: c, b: d, wall: partner, index: j }) => {
         const rel = relation(a, b, c, d, plan.wallThicknessM);
-        if (!rel || (!wall.removed && !partner.removed && wall.doorU == null && partner.doorU == null)) return;
+        const closed = !wall.removed && !partner.removed && wall.doorU == null && partner.doorU == null;
+        if (!rel || closed && !throughWalls) return;
         let u = (rel.lo + rel.hi) / 2;
-        if (!wall.removed && !partner.removed) {
+        if (!closed && !wall.removed && !partner.removed) {
           u = wall.doorU != null ? wall.doorU : projection(mix(c, d, partner.doorU), a, b).u;
           if (u < rel.lo - EPS || u > rel.hi + EPS) return;
         }
         const start = mix(a, b, u), end = projection(start, c, d);
-        links.push({ a: room.id, b: other.id, from: start, to: { x: end.x, y: end.y }, edgeA: i, edgeB: j, open: wall.removed || partner.removed });
+        links.push({ a: room.id, b: other.id, from: start, to: { x: end.x, y: end.y }, edgeA: i, edgeB: j, open: wall.removed || partner.removed, throughWall: closed });
       }));
     }));
     return links;
@@ -645,20 +646,25 @@
     while (at !== start) { const item = previous[at]; if (!item) return null; chunks.unshift(item.path); at = item.from; }
     return chunks.flat().filter((p, i, list) => !i || dist(p, list[i - 1]) > EPS || p.z !== list[i - 1].z);
   }
-  function route(plan, from, to, arrangement) {
+  function route(plan, from, to, arrangement, throughWalls = false) {
     const rooms = arrangement.rooms, a = rooms.find((r) => r.id === from.roomId), b = rooms.find((r) => r.id === to.roomId);
     if (!a || !b) return null;
     const level = (r) => r.kind === "outdoor" ? r.routeLevelM : plan.routing === "ceiling" ? plan.ceilingHeightM : 0;
-    const nodes = [{ ...position(a, from), z: level(a), roomId: a.id }, { ...position(b, to), z: level(b), roomId: b.id }], links = connections(plan, rooms);
+    const nodes = [{ ...position(a, from), z: level(a), roomId: a.id }, { ...position(b, to), z: level(b), roomId: b.id }], links = connections(plan, rooms, { throughWalls });
     links.forEach((link) => { const r = rooms.find((r) => r.id === link.a), s = rooms.find((r) => r.id === link.b); nodes.push({ ...link.from, z: level(r), roomId: r.id }, { ...link.to, z: level(s), roomId: s.id }); });
     const edges = nodes.map(() => []), add = (i, j, path) => { const cost = path.slice(1).reduce((sum, p, k) => sum + dist(p, path[k]) + Math.abs(p.z - path[k].z), 0); edges[i].push({ to: j, path, cost }); edges[j].push({ to: i, path: [...path].reverse(), cost }); };
     nodes.forEach((p, i) => nodes.slice(i + 1).forEach((q, k) => { const j = i + k + 1; if (p.roomId !== q.roomId) return; const path = insideRoute(rooms.find((r) => r.id === p.roomId), p, q); if (path) add(i, j, path.map((v) => ({ x: v.x, y: v.y, z: p.z }))); }));
     links.forEach((_, i) => { const start = 2 + i * 2, end = start + 1; add(start, end, [nodes[start], { ...nodes[end], z: nodes[start].z }, nodes[end]]); });
-    const path = shortest(nodes, edges, 0, 1); if (!path) return null;
+    const path = shortest(nodes, edges, 0, 1);
+    // A cable may pass through a shared partition without a doorway. Prefer
+    // existing openings; only use preliminary wall penetrations as a fallback.
+    if (!path) return throughWalls ? null : route(plan, from, to, arrangement, true);
+    const same = (p, q) => p && q && dist(p, q) < EPS;
+    const wallPassages = links.filter((link) => link.throughWall && path.some((p, i) => same(p, link.from) && same(path[i + 1], link.to) || same(p, link.to) && same(path[i + 1], link.from))).map((link) => ({ fromRoomId: link.a, toRoomId: link.b, x: round(link.from.x), y: round(link.from.y) }));
     path.unshift({ ...nodes[0], z: from.heightM === null ? plan.ceilingHeightM : from.heightM }); path.push({ ...nodes[1], z: to.heightM === null ? plan.ceilingHeightM : to.heightM });
     let horizontalM = 0, verticalM = 0;
     path.slice(1).forEach((p, i) => { horizontalM += dist(p, path[i]); verticalM += Math.abs(p.z - path[i].z); });
-    return { points: path.map((p) => ({ x: round(p.x), y: round(p.y), z: round(p.z) })), horizontalM: round(horizontalM), verticalM: round(verticalM), lengthM: round(horizontalM + verticalM) };
+    return { points: path.map((p) => ({ x: round(p.x), y: round(p.y), z: round(p.z) })), horizontalM: round(horizontalM), verticalM: round(verticalM), lengthM: round(horizontalM + verticalM), wallPassages };
   }
   return { area, areaOf, bounds, contours, edgesOf, verticesOf, edgeAt, vertexAt, wallAt, inward, offsetContour, centroid, contains, nearest, fit, place, position, layout, normalize, materialize, moveVertex, moveWall, dragWall, moveRoom, dockRoom, sharedWalls, stitchSharedWalls, duplicateRoom, placeBeside, resizeWall, resizeRoom, splitWall, removeVertex, setWall, openingPosition, toggleOpening, moveOpening, removeRoom, addRoom, connections, insideRoute, route };
 });

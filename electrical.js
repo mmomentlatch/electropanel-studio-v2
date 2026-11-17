@@ -118,7 +118,10 @@
     });
     const entityIds = [...project.devices, ...project.busbars, ...project.wires, ...project.combs, ...project.consumers].map((entity) => entity.id);
     if (new Set(entityIds).size !== entityIds.length) throw new Error("Повторені ідентифікатори у проєкті");
-    if (project.floorPlan) project.floorPlan = F.normalize(project.floorPlan);
+    if (project.floorPlan) {
+      project.floorPlan = F.normalize(project.floorPlan);
+      if (project.floorPlan.circuits.some((circuit) => project.devices.some((device) => device.id === circuit.id))) throw new Error("Ідентифікатор кола плану збігається з апаратом щита.");
+    }
     return project;
   }
 
@@ -433,7 +436,11 @@
     copy.busbars.forEach((bar) => { if (bar.rcdId) bar.rcdId = ids.get(bar.rcdId) || bar.rcdId; });
     copy.combs.forEach((comb) => { comb.terminals = comb.terminals.map(remap); });
     copy.consumers.forEach((consumer) => { if (consumer.deviceId) consumer.deviceId = ids.get(consumer.deviceId) || consumer.deviceId; });
-    if (copy.floorPlan) copy.floorPlan.points.forEach((point) => { if (point.circuitId) point.circuitId = ids.get(point.circuitId) || point.circuitId; });
+    if (copy.floorPlan) {
+      copy.floorPlan.circuits.forEach((circuit) => { const previous = circuit.id; circuit.id = makeId(); ids.set(previous, circuit.id); });
+      copy.floorPlan.excludedCircuitIds = copy.floorPlan.excludedCircuitIds.map((value) => ids.get(value) || value);
+      copy.floorPlan.points.forEach((point) => { if (point.circuitId) point.circuitId = ids.get(point.circuitId) || point.circuitId; });
+    }
     if (copy.design) {
       if (Array.isArray(copy.design.circuits)) copy.design.circuits.forEach((circuit) => {
         circuit.deviceId = ids.get(circuit.deviceId) || circuit.deviceId;

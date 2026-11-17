@@ -32,7 +32,7 @@ function renderFloorUX() {
   const route = !floorGeometryEditing && !floorPencilActive && floorRouteSelection;
   const connecting = floorConnectMode && !floorGeometryEditing && !floorPencilActive, source = plan?.points.find((p) => p.id === floorConnectSourceId);
   $("#floorView").classList.toggle("connecting-points", connecting);
-  $("#floorSidebarTitle").textContent = floorSidebarTab === "settings" ? "Параметри плану" : floorPencilActive ? "Олівець" : connecting ? "З’єднання точок" : floorGeometryEditing ? "Стіни й кімнати" : point ? `${point.type === "junction" ? "Доза" : F.TYPES[point.type]} ${point.label}${point.type === "junction" ? " · підключення" : ""}` : "Електричні точки";
+  $("#floorSidebarTitle").textContent = floorSidebarTab === "circuits" ? "Кола плану" : floorSidebarTab === "settings" ? "Параметри плану" : floorPencilActive ? "Олівець" : connecting ? "З’єднання точок" : floorGeometryEditing ? "Стіни й кімнати" : point ? `${point.type === "junction" ? "Доза" : F.TYPES[point.type]} ${point.label}${point.type === "junction" ? " · підключення" : ""}` : "Електричні точки";
   $("#floorConnectMode").classList.toggle("hidden", floorGeometryEditing || floorPencilActive);
   $("#floorConnectMode").disabled = !plan?.points.some((p) => p.type !== "panel");
   $("#floorConnectMode").setAttribute("aria-pressed", String(connecting));
@@ -49,7 +49,7 @@ function renderFloorUX() {
   if (opening) { label = `${floorOpeningKind === "door" ? "Двері" : "Вікно"} · ${room.name}`; detail = "Тягніть маркер уздовж стіни; стрілки — зсув, Delete — прибрати отвір"; }
   else if (geometry && floorVertexIndex !== null) { label += ` · кут ${floorVertexIndex + 1}`; detail = "Тягніть кут або рухайте стрілками"; }
   else if (roomSelected) { const count = FG.sharedWalls(plan).filter((s) => s.roomId === room.id || s.otherId === room.id).length; if (count) detail += ` · спільних ділянок стін: ${count}`; }
-  else if (!geometry && point) { const branch = project.devices.find((d) => d.id === point.circuitId); detail = `${plan.rooms.find((r) => r.id === point.roomId).name} · ${branch?.label || (point.type === "panel" ? "Ввід" : "Коло не призначено")}`; }
+  else if (!geometry && point) { const branch = F.branches(project).find((d) => d.id === point.circuitId); detail = `${plan.rooms.find((r) => r.id === point.roomId).name} · ${branch?.label || (point.type === "panel" ? "Ввід" : "Коло не призначено")}`; }
   if (route) { label = `Кабель ${plan.points.find((p) => p.id === route.fromId)?.label} → ${plan.points.find((p) => p.id === route.toId)?.label}`; detail = "Натисніть «Вставити дозу»: кабель поділиться на живлення дози й відгалуження до точки. Esc — скасувати вибір."; }
   if (connecting) {
     label = floorConnectPattern === "radial" ? "Окремі лінії від щита" : source ? `Шлейф від ${source.label}` : "Шлейф: виберіть початок";

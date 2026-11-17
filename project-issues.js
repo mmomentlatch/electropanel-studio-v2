@@ -7,6 +7,7 @@
   const circuitFields = { "circuit-purpose": "purpose", "load-input": "load", "breaker-rating": "rating", "minimum-section": "cable", "branch-overload": "rating", "branch-iz": "izA", "cable-source": "cableSource", "cable-overload": "izA", "conventional-trip": "i2A", "conventional-overload": "i2A", "branch-icn": "icnA", "fault-min": "minFaultA", "magnetic-trip": "minFaultA", "cable-length": "lengthM", "voltage-drop": "lengthM", rcd: "rcdId", "bath-afdd": "purpose", "group-rcd-missing": "rcdId", "parallel-outputs": "outputId", "unregistered-consumer": "outputId" };
   function target(project, issue) {
     const id = issue.entityId, device = project.devices.find((d) => d.id === id);
+    if (["floor-circuits-pending", "floor-point-circuit"].includes(issue.code)) return { view: "floor", field: "floorCircuitsMode", label: "Перевірити кола плану" };
     if (issue.code === "floor-length-review" || issue.code === "floor-length-stale") return { view: "floor", field: issue.code === "floor-length-review" ? "floorConfirmedInput" : "floorSyncButton", circuitId: id, label: "Перевірити план" };
     if (id === "board" && supplyFields[issue.code]) return { view: "design", supply: supplyFields[issue.code], label: "Заповнити дані" };
     if (device && circuitFields[issue.code] && project.design?.circuits.some((c) => c.deviceId === id)) return { view: "design", entityId: id, field: circuitFields[issue.code], label: "Перевірити параметр" };

@@ -30,7 +30,7 @@
   }
   function calculate(project, floorReport) {
     const floor = floorReport === undefined ? project.floorPlan ? F.calculate(project) : null : floorReport;
-    const devices = new Map(project.devices.map((d) => [d.id, d]));
+    const devices = new Map(F.branches(project, { includeExcluded: true }).map((d) => [d.id, d]));
     const cables = group((floor?.circuits || []).map((c) => ({ kind: "cable", ...profile(devices.get(c.deviceId) || {}), label: c.label, segments: c.legs.length, installedM: c.installedM, reserveM: c.reserveM, purchaseM: c.purchaseM, complete: !c.incomplete })));
     const wires = group((project.wires || []).map((w) => ({ kind: "wire", type: text(w.wireType), color: text(w.color), cores: 1, section: positive(w.section) ? Number(w.section) : null, material: w.material === "Al" ? "Al" : "Cu", label: w.label, segments: 1, installedM: positive(w.lengthM) ? Number(w.lengthM) : 0, reserveM: 0, purchaseM: positive(w.lengthM) ? Number(w.lengthM) : 0, complete: positive(w.lengthM) })));
     return { hasPlan: Boolean(floor), cables, cableTotals: totals(cables), wires, wireTotals: totals(wires), profiles: F.branches(project).map((d) => ({ id: d.id, label: d.label, name: d.name, ...profile(d) })) };

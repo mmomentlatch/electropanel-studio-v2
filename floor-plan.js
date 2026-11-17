@@ -17,7 +17,13 @@
   const clone = (value) => JSON.parse(JSON.stringify(value));
   const id = () => globalThis.crypto?.randomUUID?.() || `fp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const round = (n) => Math.round(n * 1000) / 1000;
-  const branches = (project) => project.devices.filter((device) => /^(mcb-|rcbo)/.test(device.type));
+  const CIRCUIT_KINDS = { lighting: "Освітлення", sockets: "Розетки", equipment: "Окремий прилад", mixed: "Змішане коло" };
+  function branches(project, { includePlanned = true, includeExcluded = false } = {}) {
+    const omitted = new Set(includeExcluded ? [] : project.floorPlan?.excludedCircuitIds || []);
+    const devices = project.devices.filter((device) => /^(mcb-|rcbo)/.test(device.type) && !omitted.has(device.id));
+    const planned = includePlanned ? (project.floorPlan?.circuits || []).map((circuit) => ({ ...circuit, type: "planned-circuit", planned: true, cable: circuit.sectionMm2 == null ? "" : String(circuit.sectionMm2), load: circuit.powerKw ?? null })) : [];
+    return [...devices, ...planned];
+  }
   const circuitFor = (project, key) => project.design?.circuits?.find((circuit) => circuit.key === key)?.deviceId || "";
   const isFiniteNumber = (n) => n !== "" && n !== null && Number.isFinite(Number(n));
 
@@ -82,6 +88,21 @@
       room.name = String(room.name || "Приміщення");
     });
     if (plan.geometryMode !== "free" && plan.rooms.filter((room) => room.row === "hall").length !== 1) fail("потрібен один коридор");
+    plan.circuits ??= []; plan.excludedCircuitIds ??= [];
+    if (!Array.isArray(plan.circuits) || plan.circuits.length > 64 || !Array.isArray(plan.excludedCircuitIds) || plan.excludedCircuitIds.length > 576 || plan.excludedCircuitIds.some((value) => typeof value !== "string" || !value)) fail("некоректний список кіл");
+    plan.excludedCircuitIds = [...new Set(plan.excludedCircuitIds)];
+    const circuitIds = new Set();
+    plan.circuits.forEach((circuit) => {
+      if (!circuit || typeof circuit !== "object" || typeof circuit.id !== "string" || !circuit.id || circuitIds.has(circuit.id) || !Object.hasOwn(CIRCUIT_KINDS, circuit.kind)) fail("некоректне коло плану");
+      circuitIds.add(circuit.id);
+      if (typeof circuit.name !== "string" || !circuit.name.trim() || circuit.name.length > 160 || typeof circuit.label !== "string" || !circuit.label.trim() || circuit.label.length > 24) fail("задайте назву та позначення кола");
+      circuit.roomId = roomIds.has(circuit.roomId) ? circuit.roomId : "";
+      for (const [key, min, max] of [["sectionMm2", .5, 240], ["powerKw", 0, 1000]]) {
+        if (circuit[key] == null || circuit[key] === "") circuit[key] = null;
+        else if (!isFiniteNumber(circuit[key]) || Number(circuit[key]) < min || Number(circuit[key]) > max) fail("перевірте переріз і потужність кола");
+        else circuit[key] = Number(circuit[key]);
+      }
+    });
     plan.points.forEach((point) => {
       if (!point.id || pointIds.has(point.id) || !roomIds.has(point.roomId) || !TYPES[point.type]) fail("некоректна точка");
       pointIds.add(point.id);
@@ -231,7 +252,7 @@
         }
         if (!connect(source)) { failed.add(point.id); incomplete = true; errors.push(`${point.label}: немає живлення від щита через ${source.label}.`); return false; }
         const path = route(plan, source, point, arrangement), allowanceM = 2 * plan.endAllowanceM;
-        if (!path) { failed.add(point.id); incomplete = true; errors.push(`${device.label} · ${point.label}: немає прохідної траси від ${source.label}. Додайте двері між суміжними кімнатами або відкрийте стіну.`); return false; }
+        if (!path) { failed.add(point.id); incomplete = true; errors.push(`${device.label} · ${point.label}: немає траси від ${source.label}. Приєднайте кімнату до решти плану спільною стіною або проходом.`); return false; }
         const distance = distances.get(source.id) + path.lengthM + allowanceM;
         distances.set(point.id, distance); longestPathM = Math.max(longestPathM, distance);
         legs.push({ ...path, id: `${device.id}:${point.id}`, fromId: source.id, toId: point.id, kind: point.type === "switch" ? "switch" : "feed", allowanceM });
@@ -241,10 +262,12 @@
       switches.filter((point) => point.circuitId === device.id).forEach(connect);
       const horizontalM = round(legs.reduce((sum, leg) => sum + leg.horizontalM, 0)), verticalM = round(legs.reduce((sum, leg) => sum + leg.verticalM, 0)), allowanceM = round(legs.reduce((sum, leg) => sum + leg.allowanceM, 0));
       const installedM = round(horizontalM + verticalM + allowanceM), reserveM = round(installedM * plan.reservePercent / 100);
-      circuits.push({ deviceId: device.id, label: device.label, name: device.name, section: Number(device.cable) || null, color: COLORS[circuits.length % COLORS.length], pointCount: points.length + legs.filter((leg) => leg.kind === "switch").length, legs, horizontalM, verticalM, allowanceM, installedM, reserveM, purchaseM: Math.ceil(installedM + reserveM), longestPathM: round(longestPathM), incomplete, estimated: !plan.geometryConfirmed });
+      circuits.push({ deviceId: device.id, label: device.label, name: device.name, planned: Boolean(device.planned), section: Number(device.cable) || null, color: COLORS[circuits.length % COLORS.length], pointCount: points.length + legs.filter((leg) => leg.kind === "switch").length, legs, horizontalM, verticalM, allowanceM, installedM, reserveM, purchaseM: Math.ceil(installedM + reserveM), longestPathM: round(longestPathM), incomplete, estimated: !plan.geometryConfirmed });
     });
     if (!plan.geometryConfirmed) warnings.push("Типовий ескіз: обміри, висоти та траси ще не підтверджені. Довжини попередні.");
-    if (unassigned.length) warnings.push(`${unassigned.length} точок не прив’язані до захисного кола щита.`);
+    if (unassigned.length) warnings.push(`${unassigned.length} точок без кола: виберіть наявне або створіть нове у властивостях точки. Без кола траса не будується.`);
+    if (available.some((circuit) => circuit.planned)) warnings.push("Нові кола існують лише на плані. Щоб додати їхній захист у щит, натисніть «Перезібрати щит за планом».");
+    if (circuits.some((circuit) => circuit.legs.some((leg) => leg.wallPassages?.length))) warnings.push("Частина трас проходить крізь спільні стіни. Кабельні проходи попередні — уточніть їхні місця та виконання на об’єкті.");
     if (plan.rooms.some((room) => room.kind === "bath")) warnings.push("Зони ванної/душової та допустимість розміщення точок потребують окремої перевірки.");
     if (plan.rooms.some((room) => room.kind === "outdoor")) warnings.push("Зовнішня зона має власний рівень траси; спосіб захисту та прокладання зовні потрібно уточнити.");
     const complete = circuits.filter((circuit) => !circuit.incomplete);
@@ -382,6 +405,49 @@
     return normalize(plan);
   }
 
+  function assignCircuit(project, pointIds, circuitId) {
+    const plan = normalize(project.floorPlan), chosen = new Set(pointIds);
+    if (circuitId && !branches({ ...project, floorPlan: plan }).some((circuit) => circuit.id === circuitId)) throw new Error("Виберіть наявне коло або створіть нове.");
+    for (const pointId of chosen) {
+      const point = plan.points.find((p) => p.id === pointId);
+      if (!point || point.type === "panel") throw new Error("Оберіть споживача цього плану.");
+      if (point.type === "switch" && point.controlsId) chosen.add(point.controlsId);
+    }
+    plan.points.forEach((point) => { if (chosen.has(point.id)) point.circuitId = circuitId; });
+    plan.points.filter((p) => p.type === "switch" && chosen.has(p.controlsId)).forEach((point) => { point.circuitId = circuitId; chosen.add(point.id); });
+    // Reassigning a point must not leave its old circuit feeding the new one.
+    plan.points.forEach((point) => {
+      const source = sourceFor(plan, point);
+      if (source && source.type !== "panel" && source.circuitId !== point.circuitId && (chosen.has(point.id) || chosen.has(source.id))) point.supplyFromId = "";
+    });
+    plan.geometryConfirmed = false;
+    return normalize(plan);
+  }
+  function createCircuit(project, options = {}) {
+    let plan = normalize(project.floorPlan);
+    for (const key of ["sectionMm2", "powerKw"]) if (options[key] != null && options[key] !== "" && !isFiniteNumber(options[key])) throw new Error("Перевірте переріз і потужність кола.");
+    if (plan.circuits.length >= 64) throw new Error("План підтримує до 64 нових кіл.");
+    const kind = options.kind || "sockets", room = plan.rooms.find((r) => r.id === options.roomId);
+    if (!Object.hasOwn(CIRCUIT_KINDS, kind)) throw new Error("Виберіть призначення кола.");
+    const available = branches(project, { includeExcluded: true }); let index = 1;
+    while (available.some((c) => c.label === `К${index}`)) index++;
+    const circuit = { id: id(), label: `К${index}`, name: String(options.name || `${CIRCUIT_KINDS[kind]}${room ? ` · ${room.name}` : ""}`).trim(), kind, roomId: room?.id || "", sectionMm2: Object.hasOwn(options, "sectionMm2") ? options.sectionMm2 : kind === "lighting" ? 1.5 : 2.5, powerKw: options.powerKw ?? null };
+    plan.circuits.push(circuit); plan = normalize(plan);
+    const points = new Set(options.pointIds || []);
+    if (options.assignRoom) plan.points.filter((point) => point.roomId === room?.id && !point.circuitId && (kind === "mixed" ? point.type !== "panel" : point.type === ({ lighting: "light", sockets: "socket", equipment: "equipment" })[kind])).forEach((point) => points.add(point.id));
+    plan = assignCircuit({ ...project, floorPlan: plan }, [...points], circuit.id);
+    return { plan, circuit: plan.circuits.find((c) => c.id === circuit.id) };
+  }
+  function removeCircuit(project, circuitId) {
+    const circuit = branches(project).find((c) => c.id === circuitId);
+    if (!circuit) throw new Error("Коло вже видалене або не існує.");
+    const plan = normalize(project.floorPlan);
+    plan.circuits = plan.circuits.filter((c) => c.id !== circuitId);
+    if (!circuit.planned) plan.excludedCircuitIds.push(circuitId);
+    plan.points.forEach((point) => { if (point.circuitId === circuitId) point.circuitId = ""; });
+    plan.geometryConfirmed = false;
+    return normalize(plan);
+  }
   function syncLengths(project) {
     const next = clone(project), result = calculate(next);
     (next.design?.circuits || []).forEach((record) => {
@@ -395,5 +461,5 @@
     return next;
   }
   const editGeometry = (plan) => G.materialize(plan, layout(plan));
-  return { VERSION, TYPES, COLORS, TEMPLATES, create, normalize, layout, world, route, pointHeight, doorAt, calculate, syncLengths, branches, editGeometry, sourceFor, supplyOptions, connectPoints, junctionConnections, setJunctionConnections, hitRoute, insertJunction, removePoint, junctionMounting, placePoint, withJunctionMounting };
+  return { VERSION, TYPES, COLORS, TEMPLATES, CIRCUIT_KINDS, create, normalize, layout, world, route, pointHeight, doorAt, calculate, syncLengths, branches, createCircuit, assignCircuit, removeCircuit, editGeometry, sourceFor, supplyOptions, connectPoints, junctionConnections, setJunctionConnections, hitRoute, insertJunction, removePoint, junctionMounting, placePoint, withJunctionMounting };
 });

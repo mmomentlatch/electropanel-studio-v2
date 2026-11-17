@@ -28,14 +28,15 @@
     points.forEach((point) => { const key = find(point.id); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(point); });
     const circuits = [...groups.values()].filter((members) => members.some(loadPoint)).map((members, index) => {
       const loads = members.filter(loadPoint), ids = new Set(members.map((point) => point.circuitId).filter(Boolean));
-      const devices = project.devices.filter((device) => ids.has(device.id) && D.isBranch(device));
+      const devices = F.branches(project).filter((device) => ids.has(device.id));
       const specs = (project.design?.circuits || []).filter((record) => ids.has(record.deviceId));
       const rooms = plan.rooms.filter((room) => members.some((point) => point.roomId === room.id));
       const lighting = loads.every((point) => point.type === "light"), dedicated = loads.some((point) => point.type === "equipment");
       const previous = devices.length === 1 ? devices[0] : null, spec = specs.length === 1 ? specs[0] : null;
+      const cableProfile = previous ? Object.fromEntries(["cableType", "cableColor", "cableCores"].filter((key) => previous[key] != null).map((key) => [key, previous[key]])) : {};
       const name = previous?.name || (loads.length === 1 && dedicated ? loads[0].name : lighting ? "Освітлення" : loads.every((point) => point.type === "socket") ? `Розетки · ${rooms.map((room) => room.name).join(", ")}` : `Змішане коло ${index + 1}`);
       const kw = devices.length && devices.every((device) => knownPower(device.load)) ? devices.reduce((sum, device) => sum + Number(device.load), 0) : null;
-      return { key: `plan-${index + 1}`, name, pointIds: members.map((point) => point.id), pointCount: members.length, lighting, dedicated, wet: rooms.some((room) => room.kind === "bath") || specs.some((record) => record.wet), kw, phase: previous?.phase, section: Number(previous?.cable) >= 1.5 ? Number(previous.cable) : lighting ? 1.5 : 2.5, rating: D.breaker(previous || {}) ? `${D.breaker(previous).curve}${D.breaker(previous).amps} / A / 30mA` : undefined, powerFactor: spec?.powerFactor || 1, diversity: spec?.diversity ?? 1, merged: devices.length > 1, lengthM: null };
+      return { key: `plan-${index + 1}`, name, pointIds: members.map((point) => point.id), pointCount: members.length, lighting, dedicated, wet: rooms.some((room) => room.kind === "bath") || specs.some((record) => record.wet), kw, phase: previous?.phase, section: Number(previous?.cable) >= 1.5 ? Number(previous.cable) : lighting ? 1.5 : 2.5, cableProfile, rating: D.breaker(previous || {}) ? `${D.breaker(previous).curve}${D.breaker(previous).amps} / A / 30mA` : undefined, powerFactor: spec?.powerFactor || 1, diversity: spec?.diversity ?? 1, merged: devices.length > 1, lengthM: null };
     });
     return { plan, circuits, omitted: points.filter((point) => !circuits.some((circuit) => circuit.pointIds.includes(point.id))).length };
   }
@@ -61,9 +62,14 @@
     circuits.forEach((circuit) => {
       const record = next.design.circuits.find((item) => item.key === circuit.key), device = next.devices.find((item) => item.id === record.deviceId);
       device.load = circuit.kw; // Unknown power stays unknown; 0 is an explicitly entered value.
+      Object.assign(device, circuit.cableProfile);
       circuit.pointIds.forEach((id) => assignments.set(id, device.id));
     });
-    next.floorPlan.points.forEach((point) => { point.circuitId = assignments.get(point.id) || ""; });
+    const usedCircuits = new Set(analysis.plan.points.filter((point) => assignments.has(point.id)).map((point) => point.circuitId));
+    next.floorPlan.circuits = next.floorPlan.circuits.filter((circuit) => !usedCircuits.has(circuit.id));
+    const pendingCircuits = new Set(next.floorPlan.circuits.map((circuit) => circuit.id));
+    next.floorPlan.points.forEach((point) => { point.circuitId = assignments.get(point.id) || (pendingCircuits.has(point.circuitId) ? point.circuitId : ""); });
+    next.floorPlan.excludedCircuitIds = [];
     next = F.syncLengths(next);
     next = E.normalizeProject(next);
     if (circuits.some((circuit) => circuit.kw === null)) notes.push("Для кіл без заданої потужності навантаження залишиться невідомим. Уточніть його в «Розрахунках».");
@@ -81,7 +87,7 @@
     ["ac", /кондиц|\bac\b/i, "living", 2.2], ["pump", /насос|pump/i, "utility", .6],
   ];
   function buildPlan(project, options = {}) {
-    const branches = F.branches(project);
+    const branches = F.branches(project, { includePlanned: false, includeExcluded: true });
     if (!branches.length) throw new Error("Додайте до щита хоча б один кінцевий автомат або дифавтомат.");
     const socketRouting = options.socketRouting ?? (["junction", "radial"].includes(project.floorPlan?.socketRouting) ? project.floorPlan.socketRouting : "junction");
     if (!["junction", "radial"].includes(socketRouting)) throw new Error("Оберіть розводку розеток через дозу або окремими кабелями від щита.");
@@ -90,9 +96,10 @@
     let next = copy(project);
     const notes = [], created = [], rows = [];
     const plan = existing ? F.normalize(project.floorPlan) : F.create(project, templateId(project, options.templateId));
+    plan.excludedCircuitIds = [];
     const panel = plan.points.find((point) => point.type === "panel");
     plan.points = keep ? plan.points : [panel];
-    const validIds = new Set(branches.map((device) => device.id));
+    const validIds = new Set([...branches.map((device) => device.id), ...plan.circuits.map((circuit) => circuit.id)]);
     plan.points.forEach((point) => { if (point.circuitId && !validIds.has(point.circuitId)) point.circuitId = ""; });
     const arrangement = F.layout(plan), rooms = plan.rooms;
     const roomHints = [["kitchen", /кухн|kitchen/i], ["bath", /ванн|душ|санвуз|bath/i], ["bedroom", /спальн|bedroom/i], ["living", /вітальн|living/i], ["hall", /коридор|hall/i]];

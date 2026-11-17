@@ -1031,6 +1031,7 @@ initFloorGeometry();
 initFloorUX();
 initFloorPencil();
 initFloorForms();
+initFloorCircuits();
 initProjectIssues();
 initCableReports();
 initProjectGeneration();

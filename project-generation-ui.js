@@ -12,7 +12,7 @@ function openProjectGeneration(direction) {
   try {
     const source = clone(project);
     if (direction === "panel") PanelProjectGeneration.inspectPlan(source);
-    else if (!F.branches(source).length) throw new Error("Додайте до щита хоча б один кінцевий автомат або дифавтомат.");
+    else if (!F.branches(source, { includePlanned: false, includeExcluded: true }).length) throw new Error("Додайте до щита хоча б один кінцевий автомат або дифавтомат.");
     const input = source.devices.find((device) => /^main-/.test(device.type));
     const phases = Number(source.design?.supply?.phases || (/^main-[34]p$/.test(input?.type) ? 3 : 1));
     const amps = D.breaker(input || {})?.amps || 40;

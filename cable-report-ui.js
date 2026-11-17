@@ -16,7 +16,7 @@ function renderBomCables() {
   target.innerHTML = cableSummaryMarkup(Cables.calculate(project), { settingsOpen });
 }
 function updateCableProfile(event) {
-  const input = event.target, field = input.dataset.cableField, device = project.devices.find((d) => d.id === input.dataset.cableDevice);
+  const input = event.target, field = input.dataset.cableField, device = project.devices.find((d) => d.id === input.dataset.cableDevice) || project.floorPlan?.circuits?.find((d) => d.id === input.dataset.cableDevice);
   if (!device || !["cableType", "cableColor", "cableCores"].includes(field)) return;
   const value = field === "cableCores" ? Number(input.value) : input.value.trim();
   if (field === "cableCores" && (!Number.isInteger(value) || value < 1 || value > 24)) { input.value = Cables.profile(device).cores; toast("Кількість жил має бути цілим числом від 1 до 24.", "error"); return; }

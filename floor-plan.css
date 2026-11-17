@@ -180,3 +180,17 @@
 .floor-form-draft button { font: inherit; padding: 5px 7px; background: #fff; border: 1px solid #dcc79c; border-radius: 4px; cursor: pointer; }
 
 #floorView:not(.editing-geometry) .floor-tools[data-context="walls"] #floorRoomEditor { display: block; }
+
+/* Circuit editing shares the right sidebar with point and room properties. */
+.floor-tools:not([data-context="circuits"]) #floorCircuitsEditor { display: none; }
+.floor-tools[data-context="circuits"] :is(.floor-sidebar-commands, .floor-selection-bar, #floorGeometryTools, #floorPointEditor, #floorRoomEditor, .floor-point-tool, #floorViewSettings) { display: none !important; }
+#floorCircuitsEditor h4 { margin: 16px 0 8px; color: #365765; font-size: 12px; }
+#floorCircuitsEditor .floor-fields { margin-top: 8px; }
+.floor-circuit-row { display: grid; grid-template-columns: minmax(0, 1fr) 32px; align-items: center; gap: 6px; margin: 7px 0; }
+.floor-circuit-row .floor-circuit-select { width: 100%; min-width: 0; padding: 8px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; border: 1px solid #d0dfe6; border-radius: 6px; background: #fff; color: #365765; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+.floor-circuit-select strong { font-size: 11px; }.floor-circuit-select small { font-size: 10px; color: #788f9b; }
+.floor-circuit-row .icon-button { width: 32px; height: 32px; }
+.floor-circuit-row .icon-button svg { width: 15px; height: 15px; }
+.floor-connection-status { margin: 8px 0; padding: 8px; border-radius: 6px; background: #eef6e6; color: #456434; font-size: 11px; line-height: 1.5; }
+.floor-connection-status.warning { background: #fff6df; color: #806328; }
+@media print { #floorCircuitsEditor { display: none !important; } }
