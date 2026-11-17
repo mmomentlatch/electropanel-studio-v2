@@ -188,6 +188,7 @@ function renderAll() {
   renderBom();
   renderWireReport();
   renderWiringPalette();
+  renderProjectGeneration();
   updateHistoryButtons();
 }
 
@@ -1022,6 +1023,7 @@ initFloorGeometry();
 initFloorUX();
 initFloorPencil();
 initCableReports();
+initProjectGeneration();
 PanelUIHelp.install(document);
 renderAll();
 initTemplates();

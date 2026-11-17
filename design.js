@@ -72,8 +72,18 @@
 
   function createTemplate(templateId, settings = {}) {
     if (settings.profile && settings.profile !== "UA") throw new Error("Наразі доступний лише нормативний профіль України");
-    const template = TEMPLATES.find((item) => item.id === templateId);
+    let template = TEMPLATES.find((item) => item.id === templateId);
     if (!template) throw new Error("Невідомий шаблон щита");
+    if (settings.circuits) {
+      if (!Array.isArray(settings.circuits) || !settings.circuits.length || settings.circuits.length > 21) throw new Error("Автопобудова одного щита підтримує 1–21 кінцеве коло. Об’єднайте групи або розділіть їх між щитами.");
+      const keys = new Set();
+      const circuits = settings.circuits.map((spec) => {
+        if (!spec.key || keys.has(spec.key) || !String(spec.name || "").trim() || !Number.isFinite(Number(spec.kw)) || Number(spec.kw) < 0) throw new Error("Перевірте назви, групи й потужності кіл для автопобудови");
+        keys.add(spec.key);
+        return { ...spec, name: String(spec.name).slice(0, 100), kw: Number(spec.kw) };
+      });
+      template = { ...template, rows: 8, modules: 24, circuits };
+    }
     const phases = Number(settings.phases ?? template.phases);
     const inputA = Number(settings.inputA ?? template.inputA);
     if (![1, 3].includes(phases) || ![16, 20, 25, 32, 40, 50, 63].includes(inputA)) throw new Error("Перевірте кількість фаз та ввідний номінал");
@@ -95,13 +105,13 @@
     p.busbars.push(nBar, peBar);
     const phaseLoads = { L1: 0, L2: 0, L3: 0 };
     template.circuits.forEach((spec, index) => {
-      const phase = phases === 1 ? "L1" : [...E.PHASES].sort((a, b) => phaseLoads[a] - phaseLoads[b])[0];
-      phaseLoads[phase] += current(spec.kw, 230, spec.powerFactor || 1);
-      const section = spec.lighting ? 1.5 : 2.5;
-      const protectedDevice = add("rcbo", 2, { name: spec.name, label: `QFD${index + 1}`, rating: `${spec.lighting ? "B10" : "B16"} / A / 30mA`, phase, cable: section, load: spec.kw });
+      const phase = phases === 1 ? "L1" : E.PHASES.includes(spec.phase) ? spec.phase : [...E.PHASES].sort((a, b) => phaseLoads[a] - phaseLoads[b])[0];
+      phaseLoads[phase] += current(spec.kw, 230, spec.powerFactor || 1) || 1;
+      const section = spec.section ?? (spec.lighting ? 1.5 : 2.5);
+      const protectedDevice = add("rcbo", 2, { name: spec.name, label: `QFD${index + 1}`, rating: spec.rating || `${spec.lighting ? "B10" : "B16"} / A / 30mA`, phase, cable: section, load: spec.kw });
       const output = { id: E.id(), label: `Споживач ${index + 1}`, name: spec.name, phase };
       p.consumers.push(output);
-      p.design.circuits.push({ deviceId: protectedDevice.id, outputId: output.id, outputKind: "consumer", key: spec.key, lighting: spec.lighting, wet: spec.wet, lengthM: spec.lengthM, powerFactor: spec.powerFactor || 1, diversity: 1, izA: null, i2A: null, icnA: 6000, minFaultA: null, cableSource: "", rcdType: "A", rcdMa: 30 });
+      p.design.circuits.push({ deviceId: protectedDevice.id, outputId: output.id, outputKind: "consumer", key: spec.key, lighting: spec.lighting, wet: spec.wet, lengthM: spec.lengthM, powerFactor: spec.powerFactor || 1, diversity: spec.diversity ?? 1, ...(spec.dedicated ? { dedicated: true } : {}), izA: null, i2A: null, icnA: 6000, minFaultA: null, cableSource: "", rcdType: "A", rcdMa: 30 });
     });
     const connect = (from, to, section) => p.wires.push(E.makeWire(p, from, to, { section }));
     const sourceL = (phase) => ref(incoming.id, phases === 1 ? "L-out" : `${phase}-out`);
@@ -139,7 +149,7 @@
       for (let start = 0; start < dry.length; start += 4) jobs.push({ members: dry.slice(start, start + 4), phase: phases === 1 ? "L1" : "3P", type: phases === 1 ? "rccb-2p" : "rccb-4p" });
     } else if (scheme === "balanced") {
       E.PHASES.forEach((phase) => {
-        const sockets = p.design.circuits.filter((circuit) => !circuit.wet && !circuit.lighting && !dedicatedKeys.has(circuit.key) && p.devices.find((item) => item.id === circuit.deviceId)?.phase === phase);
+        const sockets = p.design.circuits.filter((circuit) => !circuit.wet && !circuit.lighting && !circuit.dedicated && !dedicatedKeys.has(circuit.key) && p.devices.find((item) => item.id === circuit.deviceId)?.phase === phase);
         for (let start = 0; start < sockets.length; start += 4) {
           const members = sockets.slice(start, start + 4);
           // A lone circuit already has an RCBO; a separate RCCB adds no benefit.

@@ -339,6 +339,27 @@ h2 { font-size: 16px; }
 .settings-modal-card { width: 510px; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 18px; border-bottom: 1px solid var(--line); }
 .modal-close { font-size: 19px; border-color: transparent; }
+.button.generation-button, .assembly-wiring-bar .generation-button { background: #bf353d; border: 1px solid #a72d34; color: #fff; font-weight: 750; }
+.button.generation-button:hover, .assembly-wiring-bar .generation-button:hover { background: #a72d34; border-color: #8f242c; }
+.button.generation-button:focus-visible { outline: 3px solid #e78f95; outline-offset: 2px; }
+.button.generation-button:disabled { opacity: .45; cursor: default; }
+.generation-modal-card { width: min(860px, calc(100vw - 40px)); min-width: 0; }
+.generation-body { padding: 0 20px 16px; overflow-y: auto; font-size: 12px; line-height: 1.55; }
+.generation-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin: 14px 0; }
+.generation-check { display: flex; align-items: center; gap: 8px; grid-column: 1 / -1; }
+.generation-options > p { grid-column: 1 / -1; margin: 0; color: #687a87; }
+.generation-table-wrap { overflow-x: auto; margin-top: 12px; }
+.generation-table-wrap table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+.generation-table-wrap th { color: #627582; background: #f4f7f9; }
+.generation-table-wrap td, .generation-table-wrap th { padding: 8px 10px; border-bottom: 1px solid #e1e8ed; }
+.generation-table-wrap td small { display: block; color: #8a642a; font-size: 10px; }
+.generation-table-wrap input { width: 104px; min-height: 32px; border: 1px solid #becdd8; border-radius: 5px; padding: 5px 7px; }
+#generationError { color: #b32531; font-weight: 650; }
+#generationError:empty { display: none; }
+#generationNotes { padding-left: 18px; color: #5d6f7b; }
+#generationNotes li + li { margin-top: 6px; }
+.generation-backup-note { background: #f1f6ea; color: #48602e; border-radius: 7px; padding: 9px 12px; }
+@media (max-width: 600px) { .generation-options { grid-template-columns: minmax(0, 1fr); }.generation-body { padding: 0 12px 12px; }.generation-modal-card h2 { font-size: 16px; }.generation-modal-card .modal-footer { flex-wrap: wrap; gap: 8px; padding: 10px 12px; } }
 .modal-footer { border-top: 1px solid var(--line); padding: 13px 18px; display: flex; justify-content: flex-end; }
 .modal-footer.split { justify-content: space-between; }
 .modal-form { padding: 18px; }

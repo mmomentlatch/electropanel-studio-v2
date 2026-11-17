@@ -1,6 +1,6 @@
 /* Template chooser, calculation schedule, and customer layout approval. */
 const D = PanelDesign;
-const TEMPLATE_SEEN_KEY = "electropanel.templates-seen.v1";
+const TEMPLATE_SEEN_KEY = "electropanel.v2.templates-seen.v1";
 let chosenTemplateId = D.TEMPLATES[0].id;
 let preserveDesignEditor = false;
 let designInputTransaction = null;
