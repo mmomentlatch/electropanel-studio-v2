@@ -231,7 +231,7 @@ function renderLibrary() {
   $$("[data-add-component]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); addComponent(button.dataset.addComponent); }));
   $$(".component-card").forEach((card) => {
     card.addEventListener("dragstart", (event) => {
-      draggedComponentType = card.dataset.componentType;
+      draggedDeviceId = null; draggedComponentType = card.dataset.componentType;
       event.dataTransfer.setData("text/component-type", draggedComponentType);
       event.dataTransfer.effectAllowed = "copy";
       if (window.innerWidth <= 900) closeDrawers();
@@ -361,7 +361,7 @@ function handleRailDrop(event) {
   const row = Number(rail.dataset.row);
   const deviceId = event.dataTransfer.getData("text/device-id");
   const slot = railInsertionSlot(rail, event.clientX, deviceId);
-  clearRailInsertion(); draggedComponentType = null;
+  clearRailInsertion(); draggedComponentType = null; draggedDeviceId = null;
   const componentType = event.dataTransfer.getData("text/component-type");
   if (deviceId) moveDevice(deviceId, row, slot);
   else if (componentType && selectedWireId) insertComponentAtWire(componentType, selectedWireId, surfacePoint(event.clientX, event.clientY), null, { row, slot });
