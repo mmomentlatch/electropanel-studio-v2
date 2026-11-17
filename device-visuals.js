@@ -1,8 +1,8 @@
 /* Display geometry and photo framing are independent of engineering dimensions. */
 (function (root, factory) {
-  if (typeof module === "object" && module.exports) module.exports = factory(require("./mechanical.js"));
-  else root.PanelDeviceVisuals = factory(root.PanelMechanical);
-})(typeof globalThis !== "undefined" ? globalThis : this, function (M) {
+  if (typeof module === "object" && module.exports) module.exports = factory(require("./mechanical.js"), require("./protection-face.js"));
+  else root.PanelDeviceVisuals = factory(root.PanelMechanical, root.PanelProtectionFace);
+})(typeof globalThis !== "undefined" ? globalThis : this, function (M, P) {
   const HEIGHT = 90;
   // Bounds of the opaque housing in the original 320×480 photos. The middle
   // band contains blank plastic; terminals, levers, buttons and displays keep
@@ -17,10 +17,6 @@
   };
   const vector = (width, bands, inset = 1.5) => ({ box: [inset, .5, width - inset * 2, 103], bands, sourceWidth: width, sourceHeight: 104 });
   const FACES = { ...PHOTOS,
-    "rcbo.svg": { ...vector(84, [], .5), wholeFace: true },
-    "rcbo-afdd.svg": { ...vector(168, [], .5), wholeFace: true },
-    "rccb-2p.svg": { ...vector(84, [], .5), wholeFace: true },
-    "rccb-4p.svg": { ...vector(168, [], .5), wholeFace: true },
     "power-supply.svg": vector(120, [[15.5, 16.5], [86.5, 88.5]], .5),
     "control-relay.svg": vector(80, [[16, 21], [85, 88]]),
     "timer-relay.svg": vector(80, [[15, 19], [86, 90]]),
@@ -44,7 +40,6 @@
   function slices(photo, height) {
     const profile = FACES[photo]; if (!profile || !Number.isFinite(height) || height <= 0) return null;
     const [x, y, width, h] = profile.box, bands = profile.bands || [profile.band];
-    if (profile.wholeFace) return { width, height, pieces: [{ source: [x, y, width, h], y: 0, height, wholeFace: true }] };
     const scale = Math.min(1, height / h), extra = Math.max(0, height - h) / bands.length, pieces = [];
     let sourceY = y, targetY = 0;
     function add(end, housing) {
@@ -58,10 +53,14 @@
   }
   const number = (value) => String(Math.round(value * 1e6) / 1e6);
   function artwork(component, copies = 1, display = null) {
+    // Protection controls use millimetre coordinates and a single uniform
+    // scale. Stretching their old square artwork into a tall housing made
+    // the test buttons, levers and lettering visibly too long.
+    if (P.supports(component.type)) return P.render(component.type, display || undefined);
     const profile = FACES[component.photo], preview = !display;
     if (!profile) return Array.from({ length: copies }, () => `<img src="assets/devices/${component.photo}" alt="" draggable="false" />`).join("");
     const widthMm = display?.widthMm || (component.bodyModules || component.modules) * 18, heightMm = display?.heightMm || HEIGHT;
-    const face = slices(component.photo, preview && profile.wholeFace ? profile.box[3] : profile.box[2] * heightMm / (widthMm / copies));
+    const face = slices(component.photo, profile.box[2] * heightMm / (widthMm / copies));
     return Array.from({ length: copies }, () => `<svg class="device-photo-tile" viewBox="0 0 ${face.width} ${number(face.height)}" preserveAspectRatio="${preview ? "xMidYMid meet" : "none"}" aria-hidden="true" focusable="false">${face.pieces.map((piece) => `<svg style="width:${face.width}px;height:${number(piece.height)}px" x="0" y="${number(piece.y)}" width="${face.width}" height="${number(piece.height)}" viewBox="${piece.source.join(" ")}" preserveAspectRatio="none" overflow="hidden"><image href="assets/devices/${component.photo}" width="${profile.sourceWidth || 320}" height="${profile.sourceHeight || 480}"/></svg>`).join("")}</svg>`).join("");
   }
   return { HEIGHT, PHOTOS, FACES, dimensions, scene, slices, artwork };
