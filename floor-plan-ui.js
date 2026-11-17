@@ -33,7 +33,7 @@ function commitFloorPlan(next, keepConfirmation = false) {
     let candidate = E.normalizeProject({ ...project, floorPlan: F.normalize(next) });
     if (candidate.design?.supply) candidate.design.supply.dataConfirmed = false;
     if (candidate.floorPlan.syncWithCircuits) candidate = F.syncLengths(candidate);
-    snapshot(); project = candidate; floorRouteSelection = null; persistProject(); renderAll();
+    snapshot(); project = candidate; floorRouteSelection = null; completeFloorFormCommit(); persistProject(); renderAll();
     return true;
   } catch (error) { toast(error.message, "error"); return false; }
 }
@@ -113,13 +113,13 @@ function renderFloorPlan() {
     report.circuits.filter((c) => c.incomplete).forEach((c) => { const row = $("#floorCableReport tbody").querySelector(`[data-floor-circuit="${CSS.escape(c.deviceId)}"]`).closest("tr"); row.cells[7].textContent = "Неповний метраж"; row.cells[8].textContent = "—"; });
   }
   $("#floorCableReport").innerHTML += cableSummaryMarkup(quantities, { includeWires: false, settingsOpen: cableSettingsOpen });
-  renderFloorRoom(); renderFloorPoint(); renderFloorGeometry(); renderFloorUX(); renderFloorPencil(); renderFloorCanvas();
+  restoreFloorForm("settings"); renderFloorRoom(); renderFloorPoint(); renderFloorGeometry(); renderFloorUX(); renderFloorPencil(); renderFloorCanvas();
 }
 function renderFloorRoom() {
   if (!project.floorPlan) return;
   const room = F.layout(project.floorPlan).rooms.find((item) => item.id === floorRoomId);
   $$("#floorRoomEditor input, #floorRoomEditor select, #floorApplyRoom").forEach((el) => { el.disabled = !room; });
-  if (!room) return;
+  if (!room) { restoreFloorForm("room", floorRoomId); return; }
   $("#floorRoomName").value = room.name; $("#floorRoomWidth").value = floorPrecise(room.widthM); $("#floorRoomDepth").value = floorPrecise(room.depthM);
   $("#floorRoomRow").value = room.row; $("#floorRoomDoor").value = Math.round(room.doorU * 100);
   $("#floorRoomWindow").value = room.windowWall; $("#floorOutsideLevel").value = room.routeLevelM;
@@ -130,6 +130,7 @@ function renderFloorRoom() {
   $("#floorRoomDoor").disabled = room.row === "hall" || free; $("#floorRoomWindow").disabled = room.row === "hall" || free;
   $("#floorRoomGeometryHelp").textContent = free ? "Ширина й глибина — габаритний прямокутник форми. Двері та вікна редагуються на вибраній стіні. Площа рахується за контуром." : "Розміри — чисті всередині кімнати. Коридор і сусідні приміщення перераховуються; точки зберігають відносні місця.";
   $("#floorOutsideField").classList.toggle("hidden", room.kind !== "outdoor");
+  restoreFloorForm("room", floorRoomId);
 }
 function renderFloorPoint() {
   const plan = floorPointPreview || project.floorPlan, point = plan?.points.find((p) => p.id === floorSelectedId);
@@ -137,8 +138,8 @@ function renderFloorPoint() {
   $("#floorPointEmpty").classList.toggle("hidden", Boolean(point));
   $("#floorJunctionConnections").classList.toggle("hidden", point?.type !== "junction");
   $("#floorPointFields").classList.toggle("is-junction", point?.type === "junction");
-  if (!point) { floorJunctionDraft = null; floorPointPropertiesFor = null; return; }
-  if (floorPointPropertiesFor !== point.id || point.type !== "junction") $("#floorPointProperties").open = point.type !== "junction";
+  if (!point) { floorJunctionDraft = null; floorPointPropertiesFor = null; restoreFloorForm("point", ""); return; }
+  if (floorPointPropertiesFor !== point.id) $("#floorPointProperties").open = false;
   floorPointPropertiesFor = point.id;
   $("#floorApplyPoint").textContent = point.type === "junction" ? "Застосувати дозу та підключення" : "Застосувати точку";
   const room = F.layout(plan).rooms.find((item) => item.id === point.roomId);
@@ -159,6 +160,7 @@ function renderFloorPoint() {
   $("#floorPointControls").innerHTML = '<option value="">Оберіть світильник</option>' + plan.points.filter((p) => p.type === "light").map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.label)} · ${escapeHtml(p.name)}</option>`).join(""); $("#floorPointControls").value = point.controlsId || "";
   renderFloorSources(point, point.circuitId);
   prepareFloorJunctionConnections(point);
+  restoreFloorForm("point", point.id);
 }
 function prepareFloorJunctionConnections(point) {
   if (point.type !== "junction") { floorJunctionDraft = null; return; }
@@ -193,7 +195,7 @@ function renderFloorJunctionConnections() {
     let separator = "";
     if (!point.eligible && !point.connected && !unavailableStarted) { separator = '<h5 class="floor-junction-unavailable-heading">Інші кола та залежності</h5>'; roomId = null; unavailableStarted = true; }
     const heading = roomId !== point.roomId ? `<h5>${escapeHtml(point.roomName)}</h5>` : ""; roomId = point.roomId;
-    return `${separator}${heading}<label class="floor-junction-choice ${!point.eligible ? "unavailable" : ""}"><input type="checkbox" data-floor-junction-point="${escapeHtml(point.id)}" ${floorJunctionDraft.selected.has(point.id) ? "checked" : ""} ${!point.eligible && !point.connected ? "disabled" : ""}/><span><strong>${escapeHtml(point.label)}</strong> · ${escapeHtml(point.name)}<small>${escapeHtml(point.reason || `${F.TYPES[point.type]}${!point.circuitId ? " · буде призначено цьому колу" : ""}`)}</small></span></label>`;
+    return `${separator}${heading}<label class="floor-junction-choice ${!point.eligible ? "unavailable" : ""}"><input type="checkbox" data-floor-junction-point="${escapeHtml(point.id)}" ${floorJunctionDraft.selected.has(point.id) ? "checked" : ""} ${!point.eligible && !point.connected && !floorJunctionDraft.selected.has(point.id) ? "disabled" : ""}/><span><strong>${escapeHtml(point.label)}</strong> · ${escapeHtml(point.name)}<small>${escapeHtml(point.reason || `${F.TYPES[point.type]}${!point.circuitId ? " · буде призначено цьому колу" : ""}`)}</small></span></label>`;
   }).join("") : '<p class="floor-help">За цим фільтром точок немає.</p>';
   updateFloorJunctionCount(info);
 }
@@ -205,13 +207,14 @@ function initFloorJunctionConnections() {
     floorJunctionDraft.changed = true;
     if (event.target.checked) floorJunctionDraft.selected.add(id); else floorJunctionDraft.selected.delete(id);
     updateFloorJunctionCount(F.junctionConnections(project, floorJunctionDraft.id, floorJunctionDraft.circuitId));
+    recordFloorFormEdit("point");
   });
   [["#floorJunctionSelectVisible", true], ["#floorJunctionClearVisible", false]].forEach(([selector, select]) => $(selector).addEventListener("click", () => {
     if (!floorJunctionDraft) return;
     const info = F.junctionConnections(project, floorJunctionDraft.id, floorJunctionDraft.circuitId);
     floorJunctionDraft.changed = true;
     visibleFloorJunctionCandidates(info).forEach((point) => { if (!select) floorJunctionDraft.selected.delete(point.id); else if (point.eligible) floorJunctionDraft.selected.add(point.id); });
-    renderFloorJunctionConnections();
+    renderFloorJunctionConnections(); recordFloorFormEdit("point");
   }));
 }
 function renderFloorSources(point, circuitId) {
@@ -232,13 +235,15 @@ function selectFloorPoint(id) {
   renderFloorPlan();
   $("#floorPointEditor").open = true;
 }
-function saveFloorSettings() {
+function saveFloorSettings() { return applyFloorForm("settings", saveFloorSettingsValues); }
+function saveFloorSettingsValues() {
   const next = clone(project.floorPlan);
   if (next.geometryMode === "free" && next.rooms.length && Number($("#floorWallInput").value) !== next.wallThicknessM) { toast("Товщина стін готового контуру зафіксована. Задайте її до побудови кімнат у типовому плані або на чистому полотні.", "error"); renderFloorPlan(); return; }
   Object.assign(next, { ceilingHeightM: Number($("#floorCeilingInput").value), routing: $("#floorRoutingInput").value, wallThicknessM: Number($("#floorWallInput").value), reservePercent: Number($("#floorReserveInput").value), endAllowanceM: Number($("#floorAllowanceInput").value), geometryConfirmed: $("#floorConfirmedInput").checked, syncWithCircuits: $("#floorAutoLengthsInput").checked });
   commitFloorPlan(next, true);
 }
-function saveFloorRoom() {
+function saveFloorRoom() { return applyFloorForm("room", saveFloorRoomValues); }
+function saveFloorRoomValues() {
   let next = clone(project.floorPlan);
   if (next.geometryMode === "free") {
     try { next = FG.resizeRoom(next, floorRoomId, readFloorNumber("#floorRoomWidth", "ширину кімнати"), readFloorNumber("#floorRoomDepth", "глибину кімнати")); }
@@ -250,7 +255,8 @@ function saveFloorRoom() {
   Object.assign(room, { name: $("#floorRoomName").value.trim() || room.name, depthM: Number($("#floorRoomDepth").value), doorU: Number($("#floorRoomDoor").value) / 100, windowWall: $("#floorRoomWindow").value, routeLevelM: Number($("#floorOutsideLevel").value) });
   commitFloorPlan(next);
 }
-function saveFloorPoint() {
+function saveFloorPoint() { return applyFloorForm("point", saveFloorPointValues); }
+function saveFloorPointValues() {
   let next = clone(project.floorPlan); const point = next.points.find((p) => p.id === floorSelectedId);
   if (!point) return;
   const room = F.layout(next).rooms.find((r) => r.id === $("#floorPointRoom").value);

@@ -8,6 +8,7 @@ function renderProjectGeneration() {
 
 function openProjectGeneration(direction) {
   if (floorPencilActive && floorPencilVertices.length) { toast("Спочатку завершіть або скасуйте контур кімнати, який малюєте.", "error"); return; }
+  if (typeof pendingFloorForms === "function" && pendingFloorForms().length) { reviewFloorDrafts(); toast("Перед побудовою застосуйте або скасуйте чернетки форм."); return; }
   try {
     const source = clone(project);
     if (direction === "panel") PanelProjectGeneration.inspectPlan(source);

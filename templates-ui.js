@@ -89,7 +89,8 @@ function renderDesignReport() {
   badge.setAttribute("aria-controls", "designIssues");
   badge.textContent = calc.errors.length ? "Є помилки" : calc.missing.length ? "Неповні дані" : "Перевірки розрахунку";
   const approval = project.design.approval;
-  const issueItems = calc.issues.map((issue) => `<li class="${issue.level}"><b>${issue.level === "error" ? "!" : "…"}</b><span>${escapeHtml(issue.text)}</span></li>`).join("");
+  const issueGroups = projectIssueGroupsMarkup(calc);
+  const issueOpen = new Map([...target.querySelectorAll("[data-issue-group]")].map((node) => [node.dataset.issueGroup, node.open]));
   const markup = `<div class="design-summary">
     <div class="design-state ${calc.errors.length ? "error-state" : ""}"><span class="eyebrow">${escapeHtml(project.name)}</span><h2>${calc.status}</h2><p>${calc.errors.length} помилок · ${calc.missing.length} пунктів вихідних даних · нормативний профіль ${project.design.profile === "UA" ? "Україна" : `Європа · ${escapeHtml(project.design.country || "країна не задана")}`}</p><small>Ревізія ${escapeHtml(project.design.revision)} · джерела перевірено ${D.VERIFIED_DATE}</small></div>
     <div class="design-metric"><span>Розрахункова потужність</span><strong>${number(calc.powerKw)} <small>кВт</small></strong><p>${Object.entries(calc.phaseCurrents).map(([phase, amps]) => `${phase}: ${number(amps)} A`).join(" · ")}</p></div>
@@ -133,13 +134,13 @@ function renderDesignReport() {
       ${reportField("Джерело Iz / умови прокладання", "cableSource", row.spec.cableSource, "text", 'maxlength="240"', row.device.id)}
     </div><button class="button ghost" type="button" data-remove-design-circuit="${escapeHtml(row.device.id)}">Видалити коло</button></details>`).join("")}${project.design.circuits.filter((record) => !project.devices.some((device) => device.id === record.deviceId)).map((record) => `<p class="design-description">Апарат кола видалений. <button type="button" class="button ghost" data-remove-design-circuit="${escapeHtml(record.deviceId)}">Прибрати коло з відомості</button></p>`).join("")}</details>
   </div>
-  <div class="design-section" id="designIssues" tabindex="-1"><h3>3. Перевірки й межі розрахунку</h3><ul class="design-issues">${issueItems || '<li class="pass"><b>✓</b><span>Перевірки заданої розрахункової моделі пройдені.</span></li>'}</ul><div class="engineering-review"><strong>Інженерна перевірка очікується</strong><p>${calc.engineeringReview}</p><p>Перевірка мінімального КЗ оцінює верхню межу миттєвої зони B/C/D і не замінює часову характеристику конкретного виробу. Робота виконується для України; застосовні редакції ДСТУ й паспортні дані потребують звірення.</p></div></div>
+  <div class="design-section" id="designIssues" tabindex="-1"><h3>3. Перевірки й межі розрахунку</h3><div class="design-issue-groups">${issueGroups}</div><div class="engineering-review"><strong>Інженерна перевірка очікується</strong><p>${calc.engineeringReview}</p><p>Перевірка мінімального КЗ оцінює верхню межу миттєвої зони B/C/D і не замінює часову характеристику конкретного виробу. Робота виконується для України; застосовні редакції ДСТУ й паспортні дані потребують звірення.</p></div></div>
   <div class="design-section design-approval"><h3>4. Погодження компоновки замовником</h3><p class="design-description">Погоджується склад і розташування обладнання. Це не дозвіл до монтажу й не підтвердження нормативної відповідності. Зміна проєкту скасовує актуальність погодження.</p>${approval ? `<div class="approval-state ${calc.approvalCurrent ? "current" : "stale"}">${calc.approvalCurrent ? "Компоновку погоджено" : "Погодження застаріло після змін"} · ${escapeHtml(approval.name)} · ${formatDate(approval.at)}</div>` : ""}<div class="approval-form"><label class="field"><span>Хто погоджує</span><input id="layoutApprovalName" maxlength="100" placeholder="Ім’я або організація"/></label><button class="button primary" type="button" id="approveLayoutButton" ${calc.errors.length ? "disabled" : ""}>Погодити компоновку</button></div></div>
   <div class="design-section design-sources"><h3>Нормативна база та методики</h3><p class="design-description">Чинні редакції ДСТУ/EN/HD та їхні національні зміни потрібно звіряти для конкретного об’єкта. ГОСТ не застосовується автоматично за назвою.</p>${D.SOURCES.map((source) => `<article><a href="${source.url}" target="_blank" rel="noopener">${escapeHtml(source.title)} ↗</a><p>${escapeHtml(source.scope)}</p><small>${escapeHtml(source.status)}</small></article>`).join("")}</div>`;
   if (preserveDesignEditor && target.querySelector(".design-summary")) {
     const preview = document.createElement("div");
     preview.innerHTML = markup;
-    [".design-summary", ".design-assumptions", ".design-table-scroll", ".protection-plan", ".design-issues", ".engineering-review", ".approval-state"].forEach((selector) => {
+    [".design-summary", ".design-assumptions", ".design-table-scroll", ".protection-plan", ".design-issue-groups", ".engineering-review", ".approval-state"].forEach((selector) => {
       const existing = target.querySelector(selector), replacement = preview.querySelector(selector);
       if (existing && replacement) { const opened = existing.open; existing.replaceWith(replacement); if (opened) replacement.open = true; }
     });
@@ -150,6 +151,7 @@ function renderDesignReport() {
     target.innerHTML = markup;
     expanded.forEach((key) => { const detail = target.querySelector(`[data-design-details="${CSS.escape(key)}"]`); if (detail) detail.open = true; });
   }
+  target.querySelectorAll("[data-issue-group]").forEach((node) => { if (issueOpen.has(node.dataset.issueGroup)) node.open = issueOpen.get(node.dataset.issueGroup); });
   const tableRows = target.querySelectorAll(".design-table tbody tr");
   calc.rows.forEach((row, index) => {
     const cell = tableRows[index]?.cells[1];

@@ -109,6 +109,16 @@ function getInitialProject() {
   return starter;
 }
 
+let projectSaveStatus = { text: "Збережено локально", tone: "saved" };
+function setProjectSaveStatus(text, tone) { projectSaveStatus = { text, tone }; renderProjectSaveStatus(); }
+function renderProjectSaveStatus() {
+  const pending = typeof pendingFloorForms === "function" ? pendingFloorForms().length : 0, button = $("#reviewFormDraftsButton");
+  $("#saveStateText").textContent = projectSaveStatus.tone === "error" ? `${projectSaveStatus.text}${pending ? ` · чернеток: ${pending}` : ""}` : pending ? `Незастосовані зміни: ${pending}` : projectSaveStatus.text;
+  button.disabled = !pending;
+  button.classList.toggle("has-drafts", pending > 0); button.classList.toggle("save-error", projectSaveStatus.tone === "error"); button.classList.toggle("saving", projectSaveStatus.tone === "saving");
+  button.title = pending ? "Переглянути й застосувати або скасувати незастосовані зміни форм" : "Застосовані зміни зберігаються локально у браузері";
+}
+
 function persistProject({ immediate = false } = {}) {
   (project.consumers || []).filter((c) => c.deviceId).forEach((consumer) => {
     const device = project.devices.find((d) => d.id === consumer.deviceId);
@@ -126,14 +136,12 @@ function persistProject({ immediate = false } = {}) {
   project.updatedAt = new Date().toISOString();
   const index = projects.findIndex((item) => item.id === project.id);
   if (index >= 0) projects[index] = clone(project); else projects.unshift(clone(project));
-  $("#saveStateText").textContent = "Збереження…";
-  $(".save-state").classList.add("saving");
+  setProjectSaveStatus("Збереження…", "saving");
   clearTimeout(saveTimer);
   const save = () => {
     const result = PStore.save(browserStorage, projectStorageState, projects, project.id);
-    $("#saveStateText").textContent = result.ok ? "Збережено локально" : "Зміни в пам’яті · експортуйте JSON";
+    setProjectSaveStatus(result.ok ? "Збережено локально" : "Зміни в пам’яті · експортуйте JSON", result.ok ? "saved" : "error");
     if (!result.ok) toast(result.conflict ? result.error : "Браузер не зміг зберегти проєкти. Зміни залишилися в цій вкладці; експортуйте JSON.", "error");
-    $(".save-state").classList.remove("saving");
     return result.ok;
   };
   if (immediate) return save();
@@ -189,7 +197,7 @@ function renderAll() {
   renderWireReport();
   renderWiringPalette();
   renderProjectGeneration();
-  updateHistoryButtons();
+  updateHistoryButtons(); renderProjectSaveStatus();
 }
 
 function renderProjectChrome() {
@@ -1022,12 +1030,14 @@ initFloorPlan();
 initFloorGeometry();
 initFloorUX();
 initFloorPencil();
+initFloorForms();
+initProjectIssues();
 initCableReports();
 initProjectGeneration();
 PanelUIHelp.install(document);
 renderAll();
 initTemplates();
 registerServiceWorker();
-if (projectStorageState.error) { $("#saveStateText").textContent = "Зміни в пам’яті · експортуйте JSON"; toast("Локальне сховище недоступне. Можна працювати й експортувати JSON.", "error"); }
+if (projectStorageState.error) { setProjectSaveStatus("Зміни в пам’яті · експортуйте JSON", "error"); toast("Локальне сховище недоступне. Можна працювати й експортувати JSON.", "error"); }
 else if (projectStorageState.rejected.length || PStore.readString(browserStorage, PStore.RECOVERY_KEY)) toast("Є збережені дані для відновлення. Відкрийте «Мої проєкти».", "error");
 setTimeout(fitBoard, 60);

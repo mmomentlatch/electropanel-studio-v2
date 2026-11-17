@@ -90,3 +90,17 @@
   .design-report { max-width: none; padding: 0; }.design-section, .design-state, .design-metric { box-shadow: none; break-inside: avoid; padding: 9px; }
   .design-inputs, .design-editor, .approval-form, .design-project-notice { display: none; }.design-issues { max-height: none; overflow: visible; }.design-table { min-width: 0; font-size: 8px; }.design-table td, .design-table th { padding: 5px 3px; }.design-summary { display: block; }.design-state, .design-metric { margin-bottom: 8px; }
 }
+
+.design-issue-group { border: 1px solid #dae3e9; border-radius: 7px; margin: 8px 0; overflow: hidden; }
+.design-issue-group > summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; padding: 10px 12px; background: #f5f8fa; font-size: 12px; }
+.design-issue-group > summary::before { content: "▸"; color: #627788; }
+.design-issue-group[open] > summary::before { content: "▾"; }
+.design-issue-group > summary strong { flex: 1; }
+.design-issue-group > summary > span { font-size: 11px; color: #8a6219; }
+.design-issue-group .design-issues { padding: 0 10px; margin: 5px 0; }
+.design-issues li > div { min-width: 0; }
+.issue-location { display: block; margin-top: 5px; padding: 3px 0; border: 0; background: transparent; color: #255f91; font: inherit; font-size: 11px; cursor: pointer; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.issue-target { outline: 3px solid #b3db58 !important; outline-offset: 3px; }
+@media(max-width: 600px) { .design-issue-group > summary { flex-wrap: wrap; gap: 6px; } .design-issue-group > summary > span { flex-basis: 100%; margin-left: 18px; } }
+
+.design-issue-actions { padding: 0 12px 5px; border-bottom: 1px solid #edf1f4; }

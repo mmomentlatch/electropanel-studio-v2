@@ -467,3 +467,20 @@ h2 { font-size: 16px; }
 
 .project-trash, .project-recovery { margin: 12px 22px; padding: 12px; border: 1px solid #dce5eb; border-radius: 8px; font-size: 12px; }
 .project-trash summary { cursor: pointer; font-weight: 700; }.project-storage-note { color: #7f919d; }.project-trash .project-row { padding: 10px 0; }.project-recovery { color: #976d30; background: #fff8e8; }.project-recovery p { margin-bottom: 9px; }
+
+/* The save indicator also reveals unapplied form drafts. */
+button.save-state { padding: 0; border: 0; background: transparent; font-family: inherit; text-align: left; border-radius: 3px; }
+button.save-state:disabled { opacity: 1; cursor: default; }
+button.save-state.has-drafts { color: #ffd981; cursor: pointer; }
+button.save-state.has-drafts i { background: #ffd981; }
+button.save-state.save-error { color: #ffaaa7; }
+button.save-state.save-error i { background: #ff706a; }
+.form-drafts-modal { position: relative; padding: 18px; display: block; width: min(560px, 100%); max-height: 85dvh; overflow: auto; }
+.form-drafts-modal > p { font-size: 12px; color: #586977; line-height: 1.5; }
+#formDraftsList { list-style: none; padding: 0; margin: 12px 0 0; }
+#formDraftsList li { padding: 12px 0; border-top: 1px solid #e1e7ec; display: grid; gap: 5px; }
+#formDraftsList li > span { font-size: 11px; color: #667582; }
+#formDraftsList li > div { display: flex; gap: 8px; flex-wrap: wrap; }
+#formDraftsList button { padding: 6px 9px; background: white; border: 1px solid #cbd8e1; border-radius: 5px; cursor: pointer; }
+
+.form-drafts-modal .modal-close { float: right; background: transparent; cursor: pointer; }

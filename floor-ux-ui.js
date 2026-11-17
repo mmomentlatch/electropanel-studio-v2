@@ -32,7 +32,7 @@ function renderFloorUX() {
   const route = !floorGeometryEditing && !floorPencilActive && floorRouteSelection;
   const connecting = floorConnectMode && !floorGeometryEditing && !floorPencilActive, source = plan?.points.find((p) => p.id === floorConnectSourceId);
   $("#floorView").classList.toggle("connecting-points", connecting);
-  $("#floorSidebarTitle").textContent = floorSidebarTab === "settings" ? "Параметри плану" : floorPencilActive ? "Олівець" : connecting ? "З’єднання точок" : floorGeometryEditing ? "Стіни й кімнати" : point ? "Властивості точки" : "Електричні точки";
+  $("#floorSidebarTitle").textContent = floorSidebarTab === "settings" ? "Параметри плану" : floorPencilActive ? "Олівець" : connecting ? "З’єднання точок" : floorGeometryEditing ? "Стіни й кімнати" : point ? `${point.type === "junction" ? "Доза" : F.TYPES[point.type]} ${point.label}${point.type === "junction" ? " · підключення" : ""}` : "Електричні точки";
   $("#floorConnectMode").classList.toggle("hidden", floorGeometryEditing || floorPencilActive);
   $("#floorConnectMode").disabled = !plan?.points.some((p) => p.type !== "panel");
   $("#floorConnectMode").setAttribute("aria-pressed", String(connecting));

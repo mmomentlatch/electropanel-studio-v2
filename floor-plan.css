@@ -167,3 +167,16 @@
 .drawing-walls #floorPointEditor, .drawing-walls #floorRoomEditor, .drawing-walls .floor-point-tool, .connecting-points #floorPointEditor, .connecting-points .floor-point-tool { display: none; }
 .floor-tools[data-context="settings"] .floor-sidebar-commands, .floor-tools[data-context="settings"] .floor-selection-bar, .floor-tools[data-context="settings"] #floorGeometryTools, .floor-tools[data-context="settings"] #floorPointEditor, .floor-tools[data-context="settings"] #floorRoomEditor, .floor-tools[data-context="settings"] .floor-point-tool { display: none !important; }
 .floor-tools:not([data-context="settings"]) #floorTemplateEditor { display: none; }
+
+/* Basic properties remain visible; advanced fields share one disclosure. */
+.floor-tools details.floor-advanced { padding: 8px 0; margin: 6px 0; border: 0; border-top: 1px solid #e3e9ed; }
+.floor-tools details.floor-advanced > summary { display: list-item; font-size: 11px; color: #4c6273; cursor: pointer; margin-bottom: 6px; }
+.floor-form-actions { position: sticky; bottom: -12px; background: #fff; padding: 8px 0 5px; z-index: 2; }
+.floor-form-actions > button { width: 100%; }
+.floor-form-draft { background: #fff6dd; border: 1px solid #efd592; border-radius: 6px; padding: 8px; margin-bottom: 8px; color: #735012; font-size: 11px; }
+.floor-form-draft.stale { border-color: #dfad74; }
+.floor-form-draft p { margin: 0 0 6px; line-height: 1.4; }
+.floor-form-draft > div { display: flex; flex-wrap: wrap; gap: 5px; }
+.floor-form-draft button { font: inherit; padding: 5px 7px; background: #fff; border: 1px solid #dcc79c; border-radius: 4px; cursor: pointer; }
+
+#floorView:not(.editing-geometry) .floor-tools[data-context="walls"] #floorRoomEditor { display: block; }

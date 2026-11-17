@@ -10,12 +10,12 @@
     <meta name="theme-color" content="#101a24" />
     <title>ElectroPanel Studio 2</title>
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=212" />
-    <link rel="stylesheet" href="wiring.css?v=212" />
-    <link rel="stylesheet" href="templates.css?v=212" />
-    <link rel="stylesheet" href="mechanical.css?v=212" />
-    <link rel="stylesheet" href="schematic.css?v=212" />
-    <link rel="stylesheet" href="floor-plan.css?v=212" />
+    <link rel="stylesheet" href="styles.css?v=215" />
+    <link rel="stylesheet" href="wiring.css?v=215" />
+    <link rel="stylesheet" href="templates.css?v=215" />
+    <link rel="stylesheet" href="mechanical.css?v=215" />
+    <link rel="stylesheet" href="schematic.css?v=215" />
+    <link rel="stylesheet" href="floor-plan.css?v=215" />
   </head>
   <body>
     <div class="app-shell">
@@ -33,7 +33,7 @@
         </a>
 
         <div class="project-title-wrap">
-          <span class="save-state"><i></i><span id="saveStateText">Збережено локально</span></span>
+          <button type="button" id="reviewFormDraftsButton" class="save-state" disabled title="Застосовані зміни зберігаються локально у браузері"><i></i><span id="saveStateText">Збережено локально</span></button>
           <button class="project-title" id="projectTitleButton" type="button" title="Перейменувати проєкт">
             <span id="projectTitle">Щит квартири</span>
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
@@ -259,18 +259,24 @@
                   <p class="floor-help">Видалення кімнати прибирає її точки з плану. Щиток переноситься в іншу кімнату для уточнення місця. Усе можна повернути кнопкою «Назад» або Ctrl+Z.</p><p id="floorGeometryLive" class="floor-geometry-live" role="status"></p>
                 </section>
                 <details id="floorTemplateEditor"><summary>Типовий план і параметри</summary><label class="field"><span>Початкова геометрія</span><select id="floorTemplateInput"></select></label><button class="button ghost full-width" id="floorGenerateButton" type="button">Перегенерувати типовий план</button><p class="floor-help">Це замінить поточний ескіз. «Скасувати» повертає попередній. Вихідні розміри та висоти — припущення для редагування.</p><div class="floor-fields">
-                  <label class="field"><span>Стеля, м</span><input id="floorCeilingInput" type="number" min="1.8" max="8" step="0.05"/></label><label class="field"><span>Стіни, м</span><input id="floorWallInput" type="number" min="0.05" max="0.8" step="0.01"/><small id="floorWallHelp" class="hidden">Товщину задають до побудови кімнат. У готовому контурі вона зафіксована.</small></label>
+                  <label class="field"><span>Стеля, м</span><input id="floorCeilingInput" type="number" min="1.8" max="8" step="0.05"/></label>
                   <label class="field full"><span>Спосіб прокладання всередині</span><select id="floorRoutingInput"><option value="ceiling">По стелі зі спусками</option><option value="floor">По підлозі з підйомами</option></select></label>
-                  <label class="field"><span>Запас, %</span><input id="floorReserveInput" type="number" min="0" max="50" step="1"/></label><label class="field"><span>На кінець, м</span><input id="floorAllowanceInput" type="number" min="0" max="2" step="0.05"/></label>
-                  <label class="check-label full"><input id="floorConfirmedInput" type="checkbox"/> Обміри, висоти та фактичні маршрути звірено на об’єкті</label><label class="check-label full"><input id="floorAutoLengthsInput" type="checkbox"/> Автооновлення довжин у розрахунках кіл</label><button class="button primary full" id="floorApplySettings" type="button">Застосувати параметри</button>
-                </div></details>
+</div><details class="floor-advanced"><summary>Додаткові параметри трас</summary><div class="floor-fields"><label class="field"><span>Стіни, м</span><input id="floorWallInput" type="number" min="0.05" max="0.8" step="0.01"/><small id="floorWallHelp" class="hidden">Товщину задають до побудови кімнат. У готовому контурі вона зафіксована.</small></label>                  <label class="field"><span>Запас, %</span><input id="floorReserveInput" type="number" min="0" max="50" step="1"/></label><label class="field"><span>На кінець, м</span><input id="floorAllowanceInput" type="number" min="0" max="2" step="0.05"/></label>
+                  <label class="check-label full"><input id="floorConfirmedInput" type="checkbox"/> Обміри, висоти та фактичні маршрути звірено на об’єкті</label><label class="check-label full"><input id="floorAutoLengthsInput" type="checkbox"/> Автооновлення довжин у розрахунках кіл</label></div></details><div class="floor-form-actions"><div id="floorSettingsDraft" class="floor-form-draft hidden" role="status"></div><button class="button primary full" id="floorApplySettings" type="button">Застосувати параметри</button></div>
+                </details>
                 <details id="floorRoomEditor"><summary>Кімнати й розміри</summary><label class="field"><span>Приміщення</span><select id="floorRoomSelect"></select></label><div class="floor-fields">
                   <label class="field full"><span>Назва</span><input id="floorRoomName" maxlength="60"/></label><label class="field"><span>Ширина, м</span><input id="floorRoomWidth" type="number" min="0.8" max="30" step="0.1"/></label><label class="field"><span>Глибина, м</span><input id="floorRoomDepth" type="number" min="0.8" max="30" step="0.1"/></label>
-                  <label class="field full"><span>Відносно коридору</span><select id="floorRoomRow"><option value="top">Зверху</option><option value="bottom">Знизу</option><option value="hall">Коридор</option></select></label><label class="field"><span>Двері, % стіни</span><input id="floorRoomDoor" type="number" min="0" max="100" step="1"/></label><label class="field"><span>Вікно</span><select id="floorRoomWindow"><option value="none">Немає</option><option value="north">Верхня стіна</option><option value="south">Нижня стіна</option><option value="west">Ліва стіна</option><option value="east">Права стіна</option></select></label>
-                  <label class="field full hidden" id="floorOutsideField"><span>Рівень зовнішньої траси, м від підлоги</span><input id="floorOutsideLevel" type="number" min="-2" max="8" step="0.1"/></label><button class="button primary full" id="floorApplyRoom" type="button">Застосувати розміри</button>
-                </div><p class="floor-help" id="floorRoomGeometryHelp">Розміри — чисті всередині кімнати. Коридор і розташування сусідніх приміщень перераховуються; точки зберігають відносні місця.</p></details>
+                  </div><details class="floor-advanced"><summary>Додаткові параметри кімнати</summary><div class="floor-fields"><label class="field full"><span>Відносно коридору</span><select id="floorRoomRow"><option value="top">Зверху</option><option value="bottom">Знизу</option><option value="hall">Коридор</option></select></label><label class="field"><span>Двері, % стіни</span><input id="floorRoomDoor" type="number" min="0" max="100" step="1"/></label><label class="field"><span>Вікно</span><select id="floorRoomWindow"><option value="none">Немає</option><option value="north">Верхня стіна</option><option value="south">Нижня стіна</option><option value="west">Ліва стіна</option><option value="east">Права стіна</option></select></label>
+                  <label class="field full hidden" id="floorOutsideField"><span>Рівень зовнішньої траси, м від підлоги</span><input id="floorOutsideLevel" type="number" min="-2" max="8" step="0.1"/></label></div></details><div class="floor-form-actions"><div id="floorRoomDraft" class="floor-form-draft hidden" role="status"></div><button class="button primary full" id="floorApplyRoom" type="button">Застосувати розміри</button></div>
+                <p class="floor-help" id="floorRoomGeometryHelp">Розміри — чисті всередині кімнати. Коридор і розташування сусідніх приміщень перераховуються; точки зберігають відносні місця.</p></details>
                 <details id="floorPointEditor"><summary>Вибрана точка</summary><p class="floor-help" id="floorPointEmpty">Натисніть точку на плані. Її можна перетягнути в межах кімнати.</p><div id="floorPointFields" class="hidden"><strong class="floor-point-title" id="floorPointTitle"></strong>
                   <label class="field" id="floorPointCircuitField"><span>Коло щита</span><select id="floorPointCircuit"></select></label>
+                  <div class="floor-fields">
+                    <label class="field full"><span>Назва / призначення</span><input id="floorPointName" maxlength="100"/></label>
+                    <label class="field"><span>Висота, м</span><input id="floorPointHeight" type="number" min="0" max="10" step="0.05"/></label><label class="check-label" id="floorPointCeilingField"><input id="floorPointAtCeiling" type="checkbox"/> На рівні стелі</label>
+                    <label class="field full hidden" id="floorJunctionMountField"><span>Монтаж дози</span><select id="floorJunctionMounting"><option value="wall">На стіні</option><option value="ceiling">На стелі</option></select></label>
+                    <label class="field full hidden" id="floorSwitchField"><span>Керує світильником</span><select id="floorPointControls"></select></label>
+                  </div>
                   <section class="floor-junction-connections hidden" id="floorJunctionConnections" aria-labelledby="floorJunctionHeading">
                     <h4 id="floorJunctionHeading">Точки від цієї дози</h4><p class="floor-help" id="floorJunctionHelp"></p>
                     <div class="floor-junction-filters"><label class="field"><span>Приміщення</span><select id="floorJunctionRoomFilter"><option value="">Усі кімнати</option></select></label><label class="field"><span>Пошук точки</span><input type="search" id="floorJunctionSearch" placeholder="Назва або позначення"/></label></div>
@@ -278,14 +284,11 @@
                     <output id="floorJunctionCount" aria-live="polite"></output><div id="floorJunctionPointList" class="floor-junction-point-list" role="group" aria-label="Точки для підключення до дози"></div>
                     <p class="floor-help">Прапорець — окремий кабель від дози. Зняті точки повернуться на пряме живлення від щита. Вимикачі зберігають зв’язок зі своїми світильниками.</p>
                   </section>
-                  <details id="floorPointProperties" class="floor-point-properties" open><summary>Розташування, назва та живлення</summary><div class="floor-fields">
-                  <label class="field"><span>Позначення</span><input id="floorPointLabel" maxlength="24"/></label><label class="field"><span>Висота, м</span><input id="floorPointHeight" type="number" min="0" max="10" step="0.05"/></label><label class="check-label full" id="floorPointCeilingField"><input id="floorPointAtCeiling" type="checkbox"/> На рівні стелі</label>
-                  <label class="field full hidden" id="floorJunctionMountField"><span>Монтаж дози</span><select id="floorJunctionMounting"><option value="wall">На стіні</option><option value="ceiling">На стелі</option></select></label>
-                  <label class="field full"><span>Назва / призначення</span><input id="floorPointName" maxlength="100"/></label><label class="field full"><span>Приміщення</span><select id="floorPointRoom"></select></label>
-                  <label class="field"><span id="floorPointXLabel">X від лівої стіни, м</span><input id="floorPointX" type="number" min="0" step="0.05"/></label><label class="field"><span id="floorPointYLabel">Y від верхньої стіни, м</span><input id="floorPointY" type="number" min="0" step="0.05"/></label>
-                  <label class="field full hidden" id="floorSwitchField"><span>Керує світильником</span><select id="floorPointControls"></select></label>
-                  <label class="field full" id="floorSourceField"><span>Траса від</span><select id="floorPointSource"></select></label><p class="floor-help full" id="floorSourceHelp"></p>
-                  </div></details><button class="button primary" id="floorApplyPoint" type="button">Застосувати точку</button>
+                  <details id="floorPointProperties" class="floor-point-properties floor-advanced"><summary>Додаткові параметри</summary><div class="floor-fields">
+                    <label class="field"><span>Позначення</span><input id="floorPointLabel" maxlength="24"/></label><label class="field"><span>Приміщення</span><select id="floorPointRoom"></select></label>
+                    <label class="field"><span id="floorPointXLabel">X від лівої стіни, м</span><input id="floorPointX" type="number" min="0" step="0.05"/></label><label class="field"><span id="floorPointYLabel">Y від верхньої стіни, м</span><input id="floorPointY" type="number" min="0" step="0.05"/></label>
+                    <label class="field full" id="floorSourceField"><span>Траса від</span><select id="floorPointSource"></select></label><p class="floor-help full" id="floorSourceHelp"></p>
+                  </div></details><div class="floor-form-actions"><div id="floorPointDraft" class="floor-form-draft hidden" role="status"></div><button class="button primary" id="floorApplyPoint" type="button">Застосувати точку</button></div>
                 </div></details>
                 <label class="check-label floor-point-tool"><input id="floorSnapWall" type="checkbox" checked/> Притягувати точки до стіни</label>
                 <p class="floor-help floor-point-tool">Нова точка додається в обране приміщення. Довільне розміщення доступне без притягування до стін. Висоти не є універсальними нормативними значеннями.</p>
@@ -633,33 +636,38 @@
 
     <div class="toast-region" id="toastRegion" aria-live="polite"></div>
 
-    <script defer src="viewport.js?v=212"></script>
-    <script defer src="control-devices.js?v=212"></script>
-    <script defer src="mechanical.js?v=212"></script>
-    <script defer src="vendor/polygon-clipping-0.15.7.js?v=212"></script>
-    <script defer src="floor-geometry.js?v=212"></script>
-    <script defer src="floor-plan.js?v=212"></script>
-    <script defer src="floor-partition.js?v=212"></script>
-    <script defer src="floor-pencil.js?v=212"></script>
-    <script defer src="floor-svg.js?v=212"></script>
-    <script defer src="electrical.js?v=212"></script>
-    <script defer src="design.js?v=212"></script>
-    <script defer src="project-generation.js?v=212"></script>
-    <script defer src="cable-report.js?v=212"></script>
-    <script defer src="cable-report-ui.js?v=212"></script>
-    <script defer src="schematic.js?v=212"></script>
-    <script defer src="wiring.js?v=212"></script>
-    <script defer src="templates-ui.js?v=212"></script>
-    <script defer src="controls-ui.js?v=212"></script>
-    <script defer src="mechanical-ui.js?v=212"></script>
-    <script defer src="schematic-ui.js?v=212"></script>
-    <script defer src="floor-plan-ui.js?v=212"></script>
-    <script defer src="floor-geometry-ui.js?v=212"></script>
-    <script defer src="floor-ux-ui.js?v=212"></script>
-    <script defer src="floor-pencil-ui.js?v=212"></script>
-    <script defer src="project-store.js?v=212"></script>
-    <script defer src="ui-help.js?v=212"></script>
-    <script defer src="project-generation-ui.js?v=212"></script>
-    <script defer src="app.js?v=212"></script>
+    <div class="modal-backdrop hidden" id="formDraftsModal"><section class="modal-card form-drafts-modal" role="dialog" aria-modal="true" aria-labelledby="formDraftsTitle"><button type="button" class="modal-close" data-close-modal aria-label="Закрити">×</button><h2 id="formDraftsTitle">Незастосовані зміни</h2><p id="formDraftsStorage"></p><ul id="formDraftsList"></ul></section></div>
+    <script defer src="viewport.js?v=215"></script>
+    <script defer src="control-devices.js?v=215"></script>
+    <script defer src="mechanical.js?v=215"></script>
+    <script defer src="vendor/polygon-clipping-0.15.7.js?v=215"></script>
+    <script defer src="floor-geometry.js?v=215"></script>
+    <script defer src="floor-plan.js?v=215"></script>
+    <script defer src="floor-partition.js?v=215"></script>
+    <script defer src="floor-pencil.js?v=215"></script>
+    <script defer src="floor-svg.js?v=215"></script>
+    <script defer src="electrical.js?v=215"></script>
+    <script defer src="design.js?v=215"></script>
+    <script defer src="project-generation.js?v=215"></script>
+    <script defer src="cable-report.js?v=215"></script>
+    <script defer src="cable-report-ui.js?v=215"></script>
+    <script defer src="schematic.js?v=215"></script>
+    <script defer src="wiring.js?v=215"></script>
+    <script defer src="project-issues.js?v=215"></script>
+    <script defer src="project-issues-ui.js?v=215"></script>
+    <script defer src="templates-ui.js?v=215"></script>
+    <script defer src="controls-ui.js?v=215"></script>
+    <script defer src="mechanical-ui.js?v=215"></script>
+    <script defer src="schematic-ui.js?v=215"></script>
+    <script defer src="form-drafts.js?v=215"></script>
+    <script defer src="floor-plan-ui.js?v=215"></script>
+    <script defer src="floor-geometry-ui.js?v=215"></script>
+    <script defer src="floor-ux-ui.js?v=215"></script>
+    <script defer src="floor-forms-ui.js?v=215"></script>
+    <script defer src="floor-pencil-ui.js?v=215"></script>
+    <script defer src="project-store.js?v=215"></script>
+    <script defer src="ui-help.js?v=215"></script>
+    <script defer src="project-generation-ui.js?v=215"></script>
+    <script defer src="app.js?v=215"></script>
   </body>
 </html>
