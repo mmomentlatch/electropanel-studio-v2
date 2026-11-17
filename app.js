@@ -17,10 +17,10 @@ const COMPONENTS = [
   { type: "outgoing-terminal", name: "Клемник кола L/N/PE", detail: "L / N / PE · 3 затискачі", category: "Монтаж", modules: 2, rating: "L/N/PE", phase: "L1", cable: "2.5", load: 0, accent: "#de9f39", face: "contactor", photo: "terminal-block.png", photoMode: "pole", photoScale: 1.25 },
   { type: "rccb-2p", name: "ПЗВ", detail: "2P · 40 A · 30 mA", category: "Дифзахист", modules: 2, rating: "40A / 30mA", phase: "L1", cable: "6", load: 0, accent: "#2b96a6", face: "rcd", photo: "rccb-2p.svg", photoScale: 1 },
   { type: "rccb-4p", name: "ПЗВ", detail: "4P · 63 A · 30 mA", category: "Дифзахист", modules: 4, rating: "63A / 30mA", phase: "3P", cable: "10", load: 0, accent: "#2b96a6", face: "rcd", photo: "rccb-4p.svg", photoScale: 1 },
-  { type: "spd-2p", name: "Обмежувач перенапруги", detail: "T2 · 2P · 20 kA", category: "Захист", modules: 2, rating: "T2 20kA", phase: "L1", cable: "6", load: 0, accent: "#6cab46", face: "spd", photo: "spd-2p.png", photoMode: "pair", photoScale: 1.25 },
-  { type: "spd-4p", name: "Обмежувач перенапруги", detail: "T2 · 4P · 20 kA", category: "Захист", modules: 4, rating: "T2 20kA", phase: "3P", cable: "10", load: 0, accent: "#6cab46", face: "spd", photo: "spd-2p.png", photoMode: "pair", photoScale: 1.25 },
+  { type: "spd-2p", name: "Обмежувач перенапруги", detail: "T2 · 2P · 20 kA", category: "Захист", modules: 2, rating: "T2 20kA", phase: "L1", cable: "6", load: 0, accent: "#6cab46", face: "spd", photo: "spd-2p.png", photoMode: "pair", photoViewport: "48 16 228 448", photoScale: 1 },
+  { type: "spd-4p", name: "Обмежувач перенапруги", detail: "T2 · 4P · 20 kA", category: "Захист", modules: 4, rating: "T2 20kA", phase: "3P", cable: "10", load: 0, accent: "#6cab46", face: "spd", photo: "spd-2p.png", photoMode: "pair", photoViewport: "48 16 228 448", photoScale: 1 },
   { type: "contactor", name: "Модульний контактор", detail: "2P · 25 A · 230 V", category: "Керування", modules: 2, rating: "25A 230V", phase: "L1", cable: "2.5", load: 0, accent: "#b48d52", face: "contactor", photo: "contactor.png", photoScale: 1.26 },
-  { type: "relay", name: "Реле напруги", detail: "1P · 40 A", category: "Керування", modules: 2, rating: "40A", phase: "L1", cable: "6", load: 0, accent: "#826aae", face: "meter", photo: "voltage-relay.png", photoScale: 1.26 },
+  { type: "relay", name: "Реле напруги", detail: "1P · 40 A", category: "Керування", modules: 2, rating: "40A", phase: "L1", cable: "6", load: 0, accent: "#826aae", face: "meter", photo: "voltage-relay.png", photoViewport: "60 20 205 445", photoScale: 1 },
   { type: "meter", name: "Лічильник енергії", detail: "1P · 40 A · Modbus", category: "Облік", modules: 2, rating: "40A", phase: "L1", cable: "6", load: 0, accent: "#668c62", face: "meter", photo: "energy-meter.png", photoScale: 1.26 },
   { type: "terminal", name: "Клемний блок", detail: "L/N/PE · 6 мм²", category: "Монтаж", modules: 1, rating: "6 мм²", phase: "N", cable: "6", load: 0, accent: "#de9f39", face: "contactor", photo: "terminal-block.png", photoScale: 1.4 },
   { type: "blank", name: "Заглушка", detail: "1 модуль", category: "Монтаж", modules: 1, rating: "1M", phase: "N", cable: "1.5", load: 0, accent: "#aab2b5", face: "blank" },
@@ -46,6 +46,7 @@ let undoStack = [];
 let redoStack = [];
 let saveTimer = null;
 let draggedDeviceId = null;
+let draggedComponentType = null;
 
 function sampleProject() {
   const now = new Date().toISOString();
@@ -221,7 +222,7 @@ function renderLibrary() {
   $("#categoryTabs").innerHTML = CATEGORY_LABELS.map((category) => `<button class="category-tab ${category === activeCategory ? "active" : ""}" type="button" data-category="${category}">${category}</button>`).join("");
   $("#componentList").innerHTML = filtered.length ? filtered.map((component) => `
     <article class="component-card" draggable="true" data-component-type="${component.type}" title="Перетягніть на DIN-рейку">
-      <div class="component-preview type-${component.face} ${component.photo ? "has-photo" : ""}" style="--component-accent:${component.accent};--photo-scale:${component.photoScale || 1}">${component.photo ? `<img src="assets/devices/${component.photo}" alt="" loading="lazy" draggable="false" />` : ""}</div>
+      <div class="component-preview type-${component.face} ${component.photo ? "has-photo" : ""}" style="--component-accent:${component.accent};--photo-scale:${component.photoScale || 1}">${component.photo ? componentArtworkMarkup(component) : ""}</div>
       <div class="component-copy"><strong>${component.name}</strong><span>${component.detail} · ${getComponent(component.type).modules} місць</span><small class="component-dimensions">${mmText(M.dimensions({ type: component.type, geometryId: M.defaultProfile(component.type) }))}${M.defaultProfile(component.type) ? " · каталог" : " · орієнтовно"}</small></div>
       <button class="add-component" type="button" data-add-component="${component.type}" aria-label="Додати ${component.name}">+</button>
     </article>`).join("") : `<div class="component-list-empty">Нічого не знайдено.<br>Спробуйте іншу назву або категорію.</div>`;
@@ -230,11 +231,12 @@ function renderLibrary() {
   $$("[data-add-component]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); addComponent(button.dataset.addComponent); }));
   $$(".component-card").forEach((card) => {
     card.addEventListener("dragstart", (event) => {
-      event.dataTransfer.setData("text/component-type", card.dataset.componentType);
+      draggedComponentType = card.dataset.componentType;
+      event.dataTransfer.setData("text/component-type", draggedComponentType);
       event.dataTransfer.effectAllowed = "copy";
       if (window.innerWidth <= 900) closeDrawers();
     });
-    card.addEventListener("dragend", () => markWireDropTarget());
+    card.addEventListener("dragend", () => { draggedComponentType = null; clearRailInsertion(); markWireDropTarget(); });
     card.addEventListener("dblclick", () => addComponent(card.dataset.componentType));
   });
 }
@@ -269,19 +271,19 @@ function renderBoard() {
   if (boardAutoFit) fitBoard(); else updateZoomLayout();
 
   $$(".din-row").forEach((rail) => {
-    rail.addEventListener("dragover", (event) => { event.preventDefault(); rail.classList.add("drag-over"); event.dataTransfer.dropEffect = draggedDeviceId ? "move" : "copy"; });
-    rail.addEventListener("dragleave", () => rail.classList.remove("drag-over"));
+    rail.addEventListener("dragover", (event) => { event.preventDefault(); rail.classList.add("drag-over"); event.dataTransfer.dropEffect = draggedDeviceId ? "move" : "copy"; showRailInsertion(rail, event.clientX); });
+    rail.addEventListener("dragleave", (event) => { if (!rail.contains(event.relatedTarget)) { rail.classList.remove("drag-over"); clearRailInsertion(); } });
     rail.addEventListener("drop", handleRailDrop);
   });
   $$(".board-device").forEach((node) => {
     node.addEventListener("click", (event) => { event.stopPropagation(); chooseDevice(node.dataset.deviceId); });
     node.addEventListener("dragstart", (event) => {
-      draggedDeviceId = node.dataset.deviceId;
+      draggedComponentType = null; draggedDeviceId = node.dataset.deviceId;
       node.classList.add("dragging");
       event.dataTransfer.setData("text/device-id", draggedDeviceId);
       event.dataTransfer.effectAllowed = "move";
     });
-    node.addEventListener("dragend", () => { draggedDeviceId = null; node.classList.remove("dragging"); $$(".din-row").forEach((rail) => rail.classList.remove("drag-over")); });
+    node.addEventListener("dragend", () => { draggedDeviceId = null; clearRailInsertion(); node.classList.remove("dragging"); $$(".din-row").forEach((rail) => rail.classList.remove("drag-over")); });
   });
 }
 
@@ -309,10 +311,16 @@ function deviceMarkup(device) {
   </button>`;
 }
 
+function componentArtworkMarkup(component, copies = 1) {
+  return Array.from({ length: copies }, () => component.photoViewport
+    ? `<svg class="device-photo-tile" viewBox="${component.photoViewport}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><image href="assets/devices/${component.photo}" width="320" height="480"/></svg>`
+    : `<img src="assets/devices/${component.photo}" alt="" draggable="false" />`).join("");
+}
+
 function devicePhotoMarkup(device, component) {
   const bodyModules = component.bodyModules || component.modules;
   const copies = component.photoMode === "pole" ? bodyModules : component.photoMode === "pair" ? Math.max(1, Math.ceil(bodyModules / 2)) : 1;
-  const images = Array.from({ length: copies }, () => `<img src="assets/devices/${component.photo}" alt="" draggable="false" />`).join("");
+  const images = componentArtworkMarkup(component, copies);
   return `<div class="device-photo-layer">${images}</div>
     ${device.type === "main-3p" ? '<span class="three-pole-link" aria-hidden="true"></span>' : ""}
     <div class="device-photo-overlay">
@@ -331,18 +339,32 @@ function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
 }
 
+function railInsertionSlot(rail, clientX, movingId = null) {
+  const position = (clientX - rail.getBoundingClientRect().left) / zoom / MODULE_PX;
+  return PanelRailLayout.boundary(project, Number(rail.dataset.row), position, movingId);
+}
+function clearRailInsertion() { $$(".rail-insertion-marker").forEach((node) => node.remove()); }
+function showRailInsertion(rail, clientX) {
+  const moving = project.devices.find((d) => d.id === draggedDeviceId), type = moving?.type || draggedComponentType;
+  if (!type) return;
+  let slot = railInsertionSlot(rail, clientX, draggedDeviceId), row = Number(rail.dataset.row);
+  if (slot + getComponent(moving || type).modules > project.board.modulesPerRow && row + 1 < project.board.rows) { row++; slot = 0; }
+  const target = $(`.din-row[data-row="${row}"]`); clearRailInsertion();
+  const marker = document.createElement("span"); marker.className = "rail-insertion-marker";
+  marker.setAttribute("aria-hidden", "true"); marker.style.left = `${slot * MODULE_PX}px`; marker.textContent = "Вставити"; target.append(marker);
+}
+
 function handleRailDrop(event) {
   event.preventDefault();
   const rail = event.currentTarget;
   rail.classList.remove("drag-over");
   const row = Number(rail.dataset.row);
-  const rect = rail.getBoundingClientRect();
-  const unscaledX = (event.clientX - rect.left) / zoom;
-  const slot = Math.max(0, Math.min(project.board.modulesPerRow - 1, Math.floor(unscaledX / MODULE_PX)));
   const deviceId = event.dataTransfer.getData("text/device-id");
+  const slot = railInsertionSlot(rail, event.clientX, deviceId);
+  clearRailInsertion(); draggedComponentType = null;
   const componentType = event.dataTransfer.getData("text/component-type");
   if (deviceId) moveDevice(deviceId, row, slot);
-  else if (componentType && selectedWireId) insertComponentAtWire(componentType, selectedWireId, surfacePoint(event.clientX, event.clientY));
+  else if (componentType && selectedWireId) insertComponentAtWire(componentType, selectedWireId, surfacePoint(event.clientX, event.clientY), null, { row, slot });
   else if (componentType) addComponent(componentType, row, slot);
 }
 
@@ -365,33 +387,17 @@ function findFirstSpace(modules) {
   return null;
 }
 
-function nearestFreeSpace(row, preferredSlot, modules, ignoredId = null) {
-  const candidates = [];
-  for (let distance = 0; distance < project.board.modulesPerRow; distance += 1) {
-    candidates.push(preferredSlot + distance, preferredSlot - distance);
-  }
-  for (const slot of [...new Set(candidates)]) if (isSpaceFree(row, slot, modules, ignoredId)) return { row, slot };
-  for (let otherRow = 0; otherRow < project.board.rows; otherRow += 1) {
-    for (let slot = 0; slot <= project.board.modulesPerRow - modules; slot += 1) if (isSpaceFree(otherRow, slot, modules, ignoredId)) return { row: otherRow, slot };
-  }
-  return null;
-}
-
 function addComponent(type, row = null, slot = null) {
-  if (selectedWireId) return insertComponentAtWire(type, selectedWireId);
-  const component = getComponent(type);
-  let target = row === null ? findFirstSpace(component.modules) : nearestFreeSpace(row, Math.min(slot, project.board.modulesPerRow - component.modules), component.modules);
-  if (!target) return toast("У щиті немає вільного місця для цього пристрою", "error");
-  const device = makeDevice(type, target.row, target.slot);
-  const error = M.checks({ ...project, devices: [...project.devices, device] }).find((issue) => issue.level === "error");
-  if (error) return toast(error.text, "error");
-  snapshot();
-  project.devices.push(device);
-  resetWiringSelection();
-  selectedDeviceId = device.id;
-  persistProject();
-  renderAll();
-  toast(`${component.name} додано на DIN ${target.row + 1}`);
+  if (selectedWireId) return insertComponentAtWire(type, selectedWireId, null, null, row === null ? null : { row, slot });
+  try {
+    const component = getComponent(type), target = row === null ? findFirstSpace(component.modules) : { row, slot };
+    if (!target) throw new Error("У щиті немає вільного місця для цього пристрою");
+    const result = PanelRailLayout.place(project, makeDevice(type, target.row, target.slot), target.row, target.slot);
+    const error = M.checks(result.project).find((issue) => issue.level === "error"); if (error) throw new Error(error.text);
+    snapshot(); project = result.project; resetWiringSelection(); selectedDeviceId = result.device.id;
+    persistProject(); renderAll();
+    toast(`${component.name} додано на DIN ${result.target.row + 1}${result.shifted.length ? ` · зміщено елементів: ${result.shifted.length}` : ""}`);
+  } catch (error) { toast(error.message, "error"); }
 }
 
 function nearestSpaceAtPoint(modules, point, ignoredId = null) {
@@ -409,17 +415,18 @@ function nearestSpaceAtPoint(modules, point, ignoredId = null) {
   return candidates.sort((a, b) => a.distance - b.distance || a.row - b.row || a.slot - b.slot)[0] || null;
 }
 
-function insertComponentAtWire(type, wireId, point = null, existingId = null) {
+function insertComponentAtWire(type, wireId, point = null, existingId = null, placement = null) {
   try {
     if (!$("#boardView").classList.contains("active")) switchView("board");
     const existing = project.devices.find((device) => device.id === existingId);
     const component = getComponent(existing || type);
     const anchor = point || wireInsertionPoint || wireMidpoint(wireId);
-    const target = nearestSpaceAtPoint(component.modules, anchor, existingId);
+    const target = placement || nearestSpaceAtPoint(component.modules, anchor, existingId);
     if (!target) throw new Error("У щиті немає вільного місця для цього пристрою");
     const device = existing ? { ...clone(existing), row: target.row, slot: target.slot } : makeDevice(type, target.row, target.slot, { load: 0 });
     const originalWire = project.wires.find((wire) => wire.id === wireId), originalLabel = originalWire?.label;
-    const result = E.insertDeviceInWire(project, wireId, device);
+    const layout = placement ? PanelRailLayout.place(project, device, target.row, target.slot) : null;
+    const result = E.insertDeviceInWire(layout?.project || project, wireId, layout?.device || device);
     const error = M.checks(result.project).find((issue) => issue.level === "error");
     if (error) throw new Error(error.text);
     snapshot(); project = result.project;
@@ -431,22 +438,14 @@ function insertComponentAtWire(type, wireId, point = null, existingId = null) {
 }
 
 function moveDevice(id, row, slot) {
-  const device = project.devices.find((item) => item.id === id);
-  if (!device) return;
-  const component = getComponent(device);
-  if (row !== device.row && project.combs.some((comb) => comb.terminals.some((ref) => ref.ownerId === id))) return toast("Апарат входить до гребінки. Переміщуйте його по цій рейці або спершу приберіть гребінку.", "error");
-  const target = nearestFreeSpace(row, Math.min(slot, project.board.modulesPerRow - component.modules), component.modules, id);
-  if (!target) return toast("Немає вільного місця для переміщення", "error");
-  if (target.row === device.row && target.slot === device.slot) return;
-  const candidate = clone(project);
-  Object.assign(candidate.devices.find((item) => item.id === id), target);
-  const error = M.checks(candidate).find((issue) => issue.level === "error");
-  if (error) return toast(error.text, "error");
-  snapshot();
-  device.row = target.row;
-  device.slot = target.slot;
-  persistProject();
-  renderAll();
+  const device = project.devices.find((item) => item.id === id); if (!device) return;
+  try {
+    const result = PanelRailLayout.place(project, device, row, slot);
+    if (!result.movedIds.length) return;
+    const error = M.checks(result.project).find((issue) => issue.level === "error"); if (error) throw new Error(error.text);
+    snapshot(); project = result.project; selectedDeviceId = id; resetWiringSelection();
+    persistProject(); renderAll();
+  } catch (error) { toast(error.message, "error"); }
 }
 
 function deleteSelectedDevice() {
