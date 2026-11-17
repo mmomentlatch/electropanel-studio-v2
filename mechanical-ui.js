@@ -1,5 +1,12 @@
 /* Geometry inspector and scaled assembly view. Uses the same project and wires. */
 const M = PanelMechanical;
+const DEVICE_HEIGHT_VIEW_KEY = "electropanel.v2.device-height-view.v1";
+let uniformDeviceHeight = true;
+function setUniformDeviceHeight(value, redraw = true) {
+  uniformDeviceHeight = Boolean(value);
+  PStore.writeString(browserStorage, DEVICE_HEIGHT_VIEW_KEY, uniformDeviceHeight ? "uniform" : "actual");
+  if (redraw) { renderAll(); requestAnimationFrame(fitBoard); }
+}
 function geometryOwner() {
   const device = project.devices.find((item) => item.id === selectedDeviceId);
   const bar = project.busbars.find((item) => item.id === selectedBusbarId);
@@ -22,7 +29,7 @@ function prepareMechanicalBoardForm() {
   $("#boardUsableDepthInput").value = b.maxDeviceDepthMm ?? "";
   $("#boardMountingSourceInput").value = project.board.mounting?.source || "";
   $("#boardMountingConfirmedInput").checked = Boolean(project.board.mounting?.confirmed);
-  $("#boardPhysicalInput").checked = project.board.physicalView !== false;
+  $("#boardPhysicalInput").checked = !uniformDeviceHeight;
   syncCapacityFields(false);
   updateEnclosureForm(false);
 }
@@ -47,7 +54,6 @@ function updateEnclosureForm(loadPreset = true) {
     $("#boardRailSpacingInput").value = preset.rowPitchMm;
     $("#boardUsableDepthInput").value = ""; $("#boardMountingSourceInput").value = "";
     $("#boardMountingConfirmedInput").checked = false;
-    $("#boardPhysicalInput").checked = true;
     syncCapacityFields(false);
   }
   ["#boardWidthInput", "#boardHeightInput", "#boardDepthInput", "#boardPitchInput", "#boardDimensionSourceInput", "#boardIpInput"].forEach((id) => { $(id).disabled = Boolean(preset); });
@@ -71,12 +77,15 @@ function readMechanicalBoard(base) {
 }
 
 function renderMechanicalBoard() {
-  const b = M.boardGeometry(project.board), physical = project.board.physicalView !== false;
-  const viewport = M.assemblyViewport(project), frame = $("#boardAssemblyViewport");
+  const physical = true; // Both views use the same metric DIN grid and widths.
+  const viewport = M.assemblyViewport(PanelDeviceVisuals.scene(project, uniformDeviceHeight)), frame = $("#boardAssemblyViewport");
   const shell = $("#boardShell"), surface = $("#wiringSurface");
   shell.classList.add("assembly-board");
   shell.classList.toggle("physical-board", physical);
-  $("#physicalViewButton").setAttribute("aria-pressed", String(physical));
+  shell.classList.toggle("uniform-device-height", uniformDeviceHeight);
+  $("#physicalViewButton").setAttribute("aria-pressed", String(!uniformDeviceHeight));
+  $("#physicalViewButton").textContent = uniformDeviceHeight ? "Рівна висота" : "Габарити · мм";
+  $("#physicalViewButton").title = uniformDeviceHeight ? "Однакова висота зображень. Натисніть, щоб показати реальні габарити апаратів." : "Реальні габарити апаратів. Натисніть, щоб вирівняти висоту зображень.";
   $("#boardGeometryCaption").classList.add("hidden");
   $("#boardGeometryCaption").textContent = "";
   frame.classList.remove("trimmed-assembly");
@@ -101,7 +110,7 @@ function rowGeometryStyle(row) {
 }
 function deviceGeometryStyle(device) {
   if (!$("#boardShell").classList.contains("physical-board")) return `left:${device.slot * MODULE_PX + 1}px;width:${getComponent(device).modules * MODULE_PX - 3}px`;
-  const d = M.dimensions(device), scale = mmScale();
+  const d = PanelDeviceVisuals.dimensions(device, uniformDeviceHeight), scale = mmScale();
   return `left:${device.slot * MODULE_PX}px;top:${(50 - d.railOffsetMm) * scale}px;width:${d.widthMm * scale}px;height:${d.heightMm * scale}px`;
 }
 function positionPhysicalBusbars() {
@@ -200,6 +209,7 @@ function exportMechanicalCsv() {
   downloadBlob(csvContent(rows), `${slugify(project.name)}-dimensions.csv`, "text/csv;charset=utf-8");
 }
 function initMechanical() {
+  uniformDeviceHeight = PStore.readString(browserStorage, DEVICE_HEIGHT_VIEW_KEY) !== "actual";
   $("#boardCapacityInput").addEventListener("change", () => syncCapacityFields(true));
   ["#boardRowsInput", "#boardModulesInput"].forEach((id) => $(id).addEventListener("change", () => syncCapacityFields(false)));
   $("#replaceAfddButton").addEventListener("click", () => {
@@ -214,6 +224,6 @@ function initMechanical() {
   $("#geometryProfileInput").addEventListener("change", fillGeometryFields);
   $("#applyGeometryButton").addEventListener("click", applyComponentGeometry);
   $("#physicalViewButton").addEventListener("click", () => {
-    snapshot(); project.board.physicalView = project.board.physicalView === false; persistProject(); renderAll(); requestAnimationFrame(fitBoard);
+    setUniformDeviceHeight(!uniformDeviceHeight);
   });
 }

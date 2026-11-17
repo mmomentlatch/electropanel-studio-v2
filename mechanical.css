@@ -1,5 +1,5 @@
 /* Shared device proportions and equipment-only assembly view. */
-#physicalViewButton { font-size: 11px; font-weight: 800; min-width: 31px; }
+#physicalViewButton { font-size: 11px; font-weight: 800; min-width: 96px; width: auto; padding: 0 8px; white-space: nowrap; }
 #physicalViewButton[aria-pressed="true"] { background: var(--lime); border-color: #a8cd4c; }
 .enclosure-info { display: grid; gap: 7px; padding: 12px; border: 1px solid #d1ddc4; border-radius: 7px; background: #f3f8ec; font-size: 11px; line-height: 1.5; color: #465a36; }
 .enclosure-info strong { color: #263f23; }.enclosure-info small { font-size: 10px; }.enclosure-info a { color: #325c2f; }
@@ -23,7 +23,6 @@
 .physical-board .din-row::before { top: calc(var(--rail-mm-center) - var(--rail-mm-band) / 2); height: var(--rail-mm-band); left: 0; right: 0; background: linear-gradient(#a6afad 0 5%, #e4e9e7 5% 16%, #c5cdca 16% 84%, #e4e9e7 84% 94%, #969f9b 94%); }
 .physical-board .board-device { border-radius: 2px; }
 .physical-board .device-photo-layer img { transform: none; object-fit: fill; }
-.physical-board .device-photo-layer img[src$="mcb-1p.png"] { transform: scale(3.08, 1.04); }
 .physical-board .device-ident { top: 8px; }.physical-board .device-ident strong { font-size: 8px; }.physical-board .device-ident small { font-size: 6.5px; }
 .physical-board .device-circuit-label { font-size: 6.5px; bottom: 6px; }
 .physical-board .row-consumers { position: absolute; left: 0; right: 0; top: calc(var(--rail-mm-height) + 17px); margin: 0; }
@@ -57,3 +56,7 @@
 .assembly-board .board-footer { padding-top: 12px; }
 .capacity-info { color: #5e705b; font-size: 11px; line-height: 1.5; padding: 10px 12px; border-radius: 6px; background: #f0f6e9; }
 .optional-enclosure { background: #f8faf7; }
+
+/* Photo housings occupy their full height; transparent source margins are cropped. */
+.physical-board .board-device.photo-device { border: 0; background: transparent; box-shadow: none; }
+.physical-board .board-device.photo-device:hover { box-shadow: none; }

@@ -17,10 +17,10 @@ const COMPONENTS = [
   { type: "outgoing-terminal", name: "Клемник кола L/N/PE", detail: "L / N / PE · 3 затискачі", category: "Монтаж", modules: 2, rating: "L/N/PE", phase: "L1", cable: "2.5", load: 0, accent: "#de9f39", face: "contactor", photo: "terminal-block.png", photoMode: "pole", photoScale: 1.25 },
   { type: "rccb-2p", name: "ПЗВ", detail: "2P · 40 A · 30 mA", category: "Дифзахист", modules: 2, rating: "40A / 30mA", phase: "L1", cable: "6", load: 0, accent: "#2b96a6", face: "rcd", photo: "rccb-2p.svg", photoScale: 1 },
   { type: "rccb-4p", name: "ПЗВ", detail: "4P · 63 A · 30 mA", category: "Дифзахист", modules: 4, rating: "63A / 30mA", phase: "3P", cable: "10", load: 0, accent: "#2b96a6", face: "rcd", photo: "rccb-4p.svg", photoScale: 1 },
-  { type: "spd-2p", name: "Обмежувач перенапруги", detail: "T2 · 2P · 20 kA", category: "Захист", modules: 2, rating: "T2 20kA", phase: "L1", cable: "6", load: 0, accent: "#6cab46", face: "spd", photo: "spd-2p.png", photoMode: "pair", photoViewport: "48 16 228 448", photoScale: 1 },
-  { type: "spd-4p", name: "Обмежувач перенапруги", detail: "T2 · 4P · 20 kA", category: "Захист", modules: 4, rating: "T2 20kA", phase: "3P", cable: "10", load: 0, accent: "#6cab46", face: "spd", photo: "spd-2p.png", photoMode: "pair", photoViewport: "48 16 228 448", photoScale: 1 },
+  { type: "spd-2p", name: "Обмежувач перенапруги", detail: "T2 · 2P · 20 kA", category: "Захист", modules: 2, rating: "T2 20kA", phase: "L1", cable: "6", load: 0, accent: "#6cab46", face: "spd", photo: "spd-2p.png", photoMode: "pair", photoScale: 1 },
+  { type: "spd-4p", name: "Обмежувач перенапруги", detail: "T2 · 4P · 20 kA", category: "Захист", modules: 4, rating: "T2 20kA", phase: "3P", cable: "10", load: 0, accent: "#6cab46", face: "spd", photo: "spd-2p.png", photoMode: "pair", photoScale: 1 },
   { type: "contactor", name: "Модульний контактор", detail: "2P · 25 A · 230 V", category: "Керування", modules: 2, rating: "25A 230V", phase: "L1", cable: "2.5", load: 0, accent: "#b48d52", face: "contactor", photo: "contactor.png", photoScale: 1.26 },
-  { type: "relay", name: "Реле напруги", detail: "1P · 40 A", category: "Керування", modules: 2, rating: "40A", phase: "L1", cable: "6", load: 0, accent: "#826aae", face: "meter", photo: "voltage-relay.png", photoViewport: "60 20 205 445", photoScale: 1 },
+  { type: "relay", name: "Реле напруги", detail: "1P · 40 A", category: "Керування", modules: 2, rating: "40A", phase: "L1", cable: "6", load: 0, accent: "#826aae", face: "meter", photo: "voltage-relay.png", photoScale: 1 },
   { type: "meter", name: "Лічильник енергії", detail: "1P · 40 A · Modbus", category: "Облік", modules: 2, rating: "40A", phase: "L1", cable: "6", load: 0, accent: "#668c62", face: "meter", photo: "energy-meter.png", photoScale: 1.26 },
   { type: "terminal", name: "Клемний блок", detail: "L/N/PE · 6 мм²", category: "Монтаж", modules: 1, rating: "6 мм²", phase: "N", cable: "6", load: 0, accent: "#de9f39", face: "contactor", photo: "terminal-block.png", photoScale: 1.4 },
   { type: "blank", name: "Заглушка", detail: "1 модуль", category: "Монтаж", modules: 1, rating: "1M", phase: "N", cable: "1.5", load: 0, accent: "#aab2b5", face: "blank" },
@@ -311,16 +311,16 @@ function deviceMarkup(device) {
   </button>`;
 }
 
-function componentArtworkMarkup(component, copies = 1) {
-  return Array.from({ length: copies }, () => component.photoViewport
-    ? `<svg class="device-photo-tile" viewBox="${component.photoViewport}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><image href="assets/devices/${component.photo}" width="320" height="480"/></svg>`
-    : `<img src="assets/devices/${component.photo}" alt="" draggable="false" />`).join("");
+function componentArtworkMarkup(component, copies = null, display = null) {
+  const modules = component.bodyModules || component.modules;
+  copies ??= component.photoMode === "pole" ? modules : component.photoMode === "pair" ? Math.max(1, Math.ceil(modules / 2)) : 1;
+  return PanelDeviceVisuals.artwork(component, copies, display);
 }
 
 function devicePhotoMarkup(device, component) {
   const bodyModules = component.bodyModules || component.modules;
   const copies = component.photoMode === "pole" ? bodyModules : component.photoMode === "pair" ? Math.max(1, Math.ceil(bodyModules / 2)) : 1;
-  const images = componentArtworkMarkup(component, copies);
+  const images = componentArtworkMarkup(component, copies, PanelDeviceVisuals.dimensions(device, uniformDeviceHeight));
   return `<div class="device-photo-layer">${images}</div>
     ${device.type === "main-3p" ? '<span class="three-pole-link" aria-hidden="true"></span>' : ""}
     <div class="device-photo-overlay">
@@ -890,6 +890,7 @@ function applyBoardSettings() {
   }
   snapshot();
   project = candidate;
+  setUniformDeviceHeight(!$("#boardPhysicalInput").checked, false);
   selectedDeviceId = project.devices.some((device) => device.id === selectedDeviceId) ? selectedDeviceId : null;
   persistProject();
   $("#settingsModal").classList.add("hidden");
