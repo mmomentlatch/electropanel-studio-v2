@@ -283,6 +283,62 @@
     if (point.type === "light") plan.points.filter((p) => p.controlsId === point.id && (!p.circuitId || p.circuitId === oldCircuit)).forEach((p) => { p.circuitId = assigned; });
     return normalize(plan);
   }
+  function junctionConnections(project, junctionId, circuitId) {
+    const plan = normalize(project.floorPlan), byId = new Map(plan.points.map((point) => [point.id, point]));
+    const junction = byId.get(junctionId);
+    if (junction?.type !== "junction") throw new Error("Виберіть дозу на плані.");
+    circuitId ??= junction.circuitId;
+    const circuit = branches(project).find((device) => device.id === circuitId);
+    const panel = plan.points.find((point) => point.type === "panel");
+    const sourceId = (point) => point.type === "panel" ? "" : point.supplyFromId || (point.type === "switch" ? point.controlsId : panel?.id) || "";
+    const children = new Map(), controls = new Map();
+    plan.points.forEach((point) => {
+      const parent = sourceId(point); if (!children.has(parent)) children.set(parent, []); children.get(parent).push(point.id);
+      if (point.type === "switch" && point.controlsId) { if (!controls.has(point.controlsId)) controls.set(point.controlsId, []); controls.get(point.controlsId).push(point.id); }
+    });
+    const ancestors = new Set(); let upstream = byId.get(sourceId(junction));
+    while (upstream && !ancestors.has(upstream.id)) { ancestors.add(upstream.id); upstream = byId.get(sourceId(upstream)); }
+    const closure = (id) => {
+      const seen = new Set(), queue = [id];
+      while (queue.length) {
+        const next = queue.pop(); if (seen.has(next)) continue; seen.add(next);
+        queue.push(...(children.get(next) || []), ...(controls.get(next) || []));
+      }
+      return [...seen];
+    };
+    const candidates = plan.points.filter((point) => !["panel", "switch"].includes(point.type) && point.id !== junctionId).map((point) => {
+      const members = closure(point.id), membersSet = new Set(members), foreign = members.map((id) => byId.get(id)).find((member) => member.circuitId && member.circuitId !== circuitId);
+      const externalSource = members.map((id) => byId.get(id)).filter((member) => member.id !== point.id && !membersSet.has(sourceId(member))).map((member) => byId.get(sourceId(member))).find((source) => source && source.type !== "panel" && source.circuitId !== circuitId);
+      let reason = !circuit ? "Спочатку виберіть коло щита для дози" : ancestors.has(point.id) ? "Ця точка живить дозу — з’єднання утворить цикл" : point.circuitId && point.circuitId !== circuitId ? `Інше коло: ${branches(project).find((d) => d.id === point.circuitId)?.label || "не знайдено"}` : foreign ? `${foreign.label}: залежна точка іншого кола` : externalSource ? `${externalSource.label}: джерело вимикача іншого кола` : "";
+      return { id: point.id, label: point.label, name: point.name, type: point.type, roomId: point.roomId, roomName: plan.rooms.find((room) => room.id === point.roomId).name, circuitId: point.circuitId, connected: point.supplyFromId === junctionId, eligible: !reason, reason, memberIds: members };
+    });
+    return { junction, circuitId, circuitLabel: circuit?.label || "", candidates };
+  }
+  function setJunctionConnections(project, junctionId, pointIds) {
+    if (!Array.isArray(pointIds) || pointIds.some((id) => typeof id !== "string") || new Set(pointIds).size !== pointIds.length) throw new Error("Оберіть точки для підключення до дози без повторів.");
+    const info = junctionConnections(project, junctionId), selected = new Set(pointIds), plan = normalize(project.floorPlan);
+    const junction = plan.points.find((point) => point.id === junctionId), byId = new Map(plan.points.map((point) => [point.id, point]));
+    // Validate the complete batch before changing even one cable or circuit binding.
+    pointIds.forEach((id) => {
+      const candidate = info.candidates.find((point) => point.id === id);
+      if (!candidate || !candidate.eligible) throw new Error(candidate ? `${candidate.label}: ${candidate.reason}.` : "У списку є недоступна або видалена точка.");
+    });
+    if (pointIds.length) {
+      let source = sourceFor(plan, junction);
+      while (source && source.type !== "panel") {
+        if (source.circuitId !== junction.circuitId) throw new Error("Джерело дози має належати тому самому колу. Виберіть живлення від щита або точки цього кола.");
+        source = sourceFor(plan, source);
+      }
+      if (!source) throw new Error("Спочатку підключіть дозу до щита або до живленої точки цього кола.");
+    }
+    info.candidates.filter((point) => point.connected && !selected.has(point.id)).forEach((point) => { byId.get(point.id).supplyFromId = ""; });
+    pointIds.forEach((id) => {
+      const candidate = info.candidates.find((point) => point.id === id), point = byId.get(id);
+      candidate.memberIds.forEach((memberId) => { byId.get(memberId).circuitId = junction.circuitId; });
+      point.supplyFromId = junctionId;
+    });
+    return normalize(plan);
+  }
   function hitRoute(project, position, { toleranceM = .16, excludeId = "", circuitId = "", toId = "" } = {}) {
     const result = calculate(project), candidates = [];
     const downstream = (sourceId) => {
@@ -339,5 +395,5 @@
     return next;
   }
   const editGeometry = (plan) => G.materialize(plan, layout(plan));
-  return { VERSION, TYPES, COLORS, TEMPLATES, create, normalize, layout, world, route, pointHeight, doorAt, calculate, syncLengths, branches, editGeometry, sourceFor, supplyOptions, connectPoints, hitRoute, insertJunction, removePoint, junctionMounting, placePoint, withJunctionMounting };
+  return { VERSION, TYPES, COLORS, TEMPLATES, create, normalize, layout, world, route, pointHeight, doorAt, calculate, syncLengths, branches, editGeometry, sourceFor, supplyOptions, connectPoints, junctionConnections, setJunctionConnections, hitRoute, insertJunction, removePoint, junctionMounting, placePoint, withJunctionMounting };
 });

@@ -12,6 +12,8 @@ let floorConnectPattern = "chain";
 let floorFrame = null;
 let floorScale = null;
 let floorViewportFrame = null;
+let floorJunctionDraft = null;
+let floorPointPropertiesFor = null;
 const floorNumber = (n) => new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 2 }).format(n);
 const floorPrecise = (value) => Math.round(value * 1e6) / 1e6;
 function readFloorNumber(selector, label) {
@@ -133,7 +135,12 @@ function renderFloorPoint() {
   const plan = floorPointPreview || project.floorPlan, point = plan?.points.find((p) => p.id === floorSelectedId);
   $("#floorPointFields").classList.toggle("hidden", !point);
   $("#floorPointEmpty").classList.toggle("hidden", Boolean(point));
-  if (!point) return;
+  $("#floorJunctionConnections").classList.toggle("hidden", point?.type !== "junction");
+  $("#floorPointFields").classList.toggle("is-junction", point?.type === "junction");
+  if (!point) { floorJunctionDraft = null; floorPointPropertiesFor = null; return; }
+  if (floorPointPropertiesFor !== point.id || point.type !== "junction") $("#floorPointProperties").open = point.type !== "junction";
+  floorPointPropertiesFor = point.id;
+  $("#floorApplyPoint").textContent = point.type === "junction" ? "Застосувати дозу та підключення" : "Застосувати точку";
   const room = F.layout(plan).rooms.find((item) => item.id === point.roomId);
   $("#floorPointXLabel").textContent = plan.geometryMode === "free" ? "X від габаритної межі, м" : "Від лівої стіни, м";
   $("#floorPointYLabel").textContent = plan.geometryMode === "free" ? "Y від габаритної межі, м" : "Від верхньої стіни, м";
@@ -151,6 +158,61 @@ function renderFloorPoint() {
   $("#floorSwitchField").classList.toggle("hidden", point.type !== "switch");
   $("#floorPointControls").innerHTML = '<option value="">Оберіть світильник</option>' + plan.points.filter((p) => p.type === "light").map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.label)} · ${escapeHtml(p.name)}</option>`).join(""); $("#floorPointControls").value = point.controlsId || "";
   renderFloorSources(point, point.circuitId);
+  prepareFloorJunctionConnections(point);
+}
+function prepareFloorJunctionConnections(point) {
+  if (point.type !== "junction") { floorJunctionDraft = null; return; }
+  if (!floorJunctionDraft || floorJunctionDraft.id !== point.id || floorJunctionDraft.plan !== project.floorPlan) {
+    const sameJunction = floorJunctionDraft?.id === point.id, previousRoom = sameJunction ? $("#floorJunctionRoomFilter").value : "", previousSearch = sameJunction ? $("#floorJunctionSearch").value : "";
+    floorJunctionDraft = { id: point.id, plan: project.floorPlan, fingerprint: JSON.stringify(project.floorPlan), changed: false, circuitId: point.circuitId, selected: new Set(project.floorPlan.points.filter((p) => p.type !== "switch" && p.supplyFromId === point.id).map((p) => p.id)) };
+    $("#floorJunctionRoomFilter").innerHTML = '<option value="">Усі кімнати</option>' + project.floorPlan.rooms.map((room) => `<option value="${escapeHtml(room.id)}">${escapeHtml(room.name)}</option>`).join("");
+    $("#floorJunctionRoomFilter").value = project.floorPlan.rooms.some((room) => room.id === previousRoom) ? previousRoom : ""; $("#floorJunctionSearch").value = previousSearch;
+  }
+  renderFloorJunctionConnections();
+}
+function visibleFloorJunctionCandidates(info) {
+  const roomId = $("#floorJunctionRoomFilter").value, search = $("#floorJunctionSearch").value.trim().toLocaleLowerCase("uk");
+  return info.candidates.filter((point) => (!roomId || point.roomId === roomId) && (!search || `${point.label} ${point.name} ${F.TYPES[point.type]} ${point.roomName}`.toLocaleLowerCase("uk").includes(search)));
+}
+function updateFloorJunctionCount(info) {
+  const selected = info.candidates.filter((point) => floorJunctionDraft.selected.has(point.id)), invalid = selected.filter((point) => !point.eligible).length;
+  $("#floorJunctionCount").textContent = `Вибрано: ${selected.length} · доступно: ${info.candidates.filter((point) => point.eligible).length}${invalid ? ` · перевірте ${invalid} несумісних` : ""}`;
+  $("#floorJunctionCount").classList.toggle("has-conflicts", invalid > 0);
+  const visible = visibleFloorJunctionCandidates(info);
+  $("#floorJunctionSelectVisible").disabled = !visible.some((point) => point.eligible && !floorJunctionDraft.selected.has(point.id));
+  $("#floorJunctionClearVisible").disabled = !visible.some((point) => floorJunctionDraft.selected.has(point.id));
+}
+function renderFloorJunctionConnections() {
+  if (!floorJunctionDraft) return;
+  const info = F.junctionConnections(project, floorJunctionDraft.id, floorJunctionDraft.circuitId), visible = visibleFloorJunctionCandidates(info);
+  $("#floorJunctionHelp").textContent = info.circuitLabel ? `${info.junction.label} · ${info.circuitLabel}. Один спільний кабель до дози й відгалуження до вибраних точок. Точки інших автоматів позначені в списку.` : "Спочатку виберіть коло щита вище. Можна вибрати точки з різних кімнат одного кола.";
+  let roomId = null, unavailableStarted = false;
+  const grouped = project.floorPlan.rooms.map((room) => visible.filter((point) => point.roomId === room.id)).flat();
+  const ordered = [...grouped.filter((point) => point.eligible || point.connected), ...grouped.filter((point) => !point.eligible && !point.connected)];
+  $("#floorJunctionPointList").innerHTML = !info.circuitLabel ? '<p class="floor-help">Оберіть автомат, від якого живитиметься доза.</p>' : visible.length ? ordered.map((point) => {
+    let separator = "";
+    if (!point.eligible && !point.connected && !unavailableStarted) { separator = '<h5 class="floor-junction-unavailable-heading">Інші кола та залежності</h5>'; roomId = null; unavailableStarted = true; }
+    const heading = roomId !== point.roomId ? `<h5>${escapeHtml(point.roomName)}</h5>` : ""; roomId = point.roomId;
+    return `${separator}${heading}<label class="floor-junction-choice ${!point.eligible ? "unavailable" : ""}"><input type="checkbox" data-floor-junction-point="${escapeHtml(point.id)}" ${floorJunctionDraft.selected.has(point.id) ? "checked" : ""} ${!point.eligible && !point.connected ? "disabled" : ""}/><span><strong>${escapeHtml(point.label)}</strong> · ${escapeHtml(point.name)}<small>${escapeHtml(point.reason || `${F.TYPES[point.type]}${!point.circuitId ? " · буде призначено цьому колу" : ""}`)}</small></span></label>`;
+  }).join("") : '<p class="floor-help">За цим фільтром точок немає.</p>';
+  updateFloorJunctionCount(info);
+}
+function initFloorJunctionConnections() {
+  $("#floorJunctionRoomFilter").addEventListener("change", renderFloorJunctionConnections);
+  $("#floorJunctionSearch").addEventListener("input", renderFloorJunctionConnections);
+  $("#floorJunctionPointList").addEventListener("change", (event) => {
+    const id = event.target.dataset.floorJunctionPoint; if (!id || !floorJunctionDraft) return;
+    floorJunctionDraft.changed = true;
+    if (event.target.checked) floorJunctionDraft.selected.add(id); else floorJunctionDraft.selected.delete(id);
+    updateFloorJunctionCount(F.junctionConnections(project, floorJunctionDraft.id, floorJunctionDraft.circuitId));
+  });
+  [["#floorJunctionSelectVisible", true], ["#floorJunctionClearVisible", false]].forEach(([selector, select]) => $(selector).addEventListener("click", () => {
+    if (!floorJunctionDraft) return;
+    const info = F.junctionConnections(project, floorJunctionDraft.id, floorJunctionDraft.circuitId);
+    floorJunctionDraft.changed = true;
+    visibleFloorJunctionCandidates(info).forEach((point) => { if (!select) floorJunctionDraft.selected.delete(point.id); else if (point.eligible) floorJunctionDraft.selected.add(point.id); });
+    renderFloorJunctionConnections();
+  }));
 }
 function renderFloorSources(point, circuitId) {
   const select = $("#floorPointSource"), plan = project.floorPlan;
@@ -162,6 +224,7 @@ function renderFloorSources(point, circuitId) {
   $("#floorSourceHelp").textContent = "Виберіть щит, дозу або попередню точку цього кола. Мишкою зв’язки задаються кнопкою «З’єднати»: шлейфом або окремими лініями від щита.";
 }
 function selectFloorPoint(id) {
+  floorJunctionDraft = null;
   floorSelectedId = id; floorRouteSelection = null;
   requestFloorSidebar("points");
   const point = project.floorPlan.points.find((p) => p.id === id);
@@ -197,8 +260,18 @@ function saveFloorPoint() {
   if (point.type === "light") next.points.filter((p) => p.controlsId === point.id).forEach((p) => { p.circuitId = point.circuitId; });
   delete point.placementReview;
   if (point.type === "junction") {
-    try { const mounting = $("#floorJunctionMounting").value; next = F.withJunctionMounting(next, point.id, mounting, mounting === "wall" ? readFloorNumber("#floorPointHeight", "висоту дози") : undefined); }
+    try {
+      const mounting = $("#floorJunctionMounting").value;
+      next = F.withJunctionMounting(next, point.id, mounting, mounting === "wall" ? readFloorNumber("#floorPointHeight", "висоту дози") : undefined);
+      if (floorJunctionDraft?.id === point.id && floorJunctionDraft.changed) {
+        if (floorJunctionDraft.fingerprint !== JSON.stringify(project.floorPlan)) throw new Error("План змінився після вибору точок. Виберіть дозу знову й перевірте підключення.");
+        next = F.setJunctionConnections({ ...project, floorPlan: next }, point.id, [...floorJunctionDraft.selected]);
+      }
+    }
     catch (error) { toast(error.message, "error"); return; }
+    const previousCircuit = floorCircuitId; floorCircuitId = point.circuitId;
+    if (!commitFloorPlan(next)) floorCircuitId = previousCircuit;
+    return;
   }
   commitFloorPlan(next);
 }
@@ -307,6 +380,7 @@ function exportFloorCsv() {
   downloadBlob(csvContent(rows), `${slugify(project.name)}-floor-cables.csv`, "text/csv;charset=utf-8");
 }
 function initFloorPlan() {
+  initFloorJunctionConnections();
   const exportMenu = $(".floor-export-menu");
   exportMenu.addEventListener("click", (event) => { if (event.target.closest("button")) exportMenu.open = false; });
   document.addEventListener("pointerdown", (event) => { if (!event.target.closest(".floor-export-menu")) exportMenu.open = false; });
@@ -323,7 +397,16 @@ function initFloorPlan() {
     $("#floorPointAtCeiling").checked = ceiling; $("#floorPointHeight").disabled = ceiling;
     $("#floorPointHeight").value = ceiling ? project.floorPlan.ceilingHeightM : Math.max(0, project.floorPlan.ceilingHeightM - .2);
   });
-  $("#floorPointCircuit").addEventListener("change", () => { const point = project.floorPlan.points.find((p) => p.id === floorSelectedId); if (point) renderFloorSources(point, $("#floorPointCircuit").value); });
+  $("#floorPointCircuit").addEventListener("change", () => {
+    const point = project.floorPlan.points.find((p) => p.id === floorSelectedId), circuitId = $("#floorPointCircuit").value;
+    if (point) renderFloorSources(point, circuitId);
+    if (point?.type === "junction" && floorJunctionDraft) {
+      floorJunctionDraft.circuitId = circuitId;
+      floorJunctionDraft.changed = true;
+      if (point.supplyFromId && project.floorPlan.points.find((p) => p.id === point.supplyFromId)?.circuitId !== circuitId) $("#floorPointSource").value = "";
+      renderFloorJunctionConnections();
+    }
+  });
   $("#floorPointControls").addEventListener("change", () => { const point = project.floorPlan.points.find((p) => p.id === floorSelectedId), lamp = project.floorPlan.points.find((p) => p.id === $("#floorPointControls").value); if (point) { $("#floorPointCircuit").value = lamp?.circuitId || ""; renderFloorSources(point, lamp?.circuitId || ""); } });
   $("#floorQuickPointType").addEventListener("change", () => { floorRouteSelection = null; renderFloorUX(); renderFloorCanvas(); });
   $("#floorConnectMode").addEventListener("click", () => setFloorConnectMode(!floorConnectMode));
