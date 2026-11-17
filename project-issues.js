@@ -21,6 +21,7 @@
       const group = map.get(key); group[issue.level === "error" ? "errors" : "pending"]++;
       group.items.push({ ...issue, index, target: target(project, issue) });
     });
+    for (const group of map.values()) group.items.sort((a, b) => Number(b.level === "error") - Number(a.level === "error"));
     return [...map.values()].sort((a, b) => Number(b.errors > 0) - Number(a.errors > 0));
   }
   return { groups, target };

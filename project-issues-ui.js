@@ -34,6 +34,15 @@ function navigateProjectIssue(issue) {
   revealIssueField(input);
 }
 function initProjectIssues() {
+  let printedGroups = [];
+  window.addEventListener("beforeprint", () => {
+    if (printedGroups.length) return;
+    printedGroups = [...document.querySelectorAll("[data-issue-group]")].map((node) => ({ node, open: node.open }));
+    printedGroups.forEach(({ node }) => { node.open = true; });
+  });
+  window.addEventListener("afterprint", () => {
+    printedGroups.forEach(({ node, open }) => { node.open = open; }); printedGroups = [];
+  });
   $("#designReport").addEventListener("click", (event) => {
     const object = event.target.closest("[data-issue-object]"); if (object) { navigateProjectIssue({ entityId: object.dataset.issueObject, code: "object-location" }); return; }
     const button = event.target.closest("[data-issue-index]"); if (!button) return;

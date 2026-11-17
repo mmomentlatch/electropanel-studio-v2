@@ -97,7 +97,7 @@
 .design-issue-group[open] > summary::before { content: "▾"; }
 .design-issue-group > summary strong { flex: 1; }
 .design-issue-group > summary > span { font-size: 11px; color: #8a6219; }
-.design-issue-group .design-issues { padding: 0 10px; margin: 5px 0; }
+.design-issue-group .design-issues { padding: 0 10px; margin: 5px 0; max-height: none; overflow: visible; }
 .design-issues li > div { min-width: 0; }
 .issue-location { display: block; margin-top: 5px; padding: 3px 0; border: 0; background: transparent; color: #255f91; font: inherit; font-size: 11px; cursor: pointer; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
 .issue-target { outline: 3px solid #b3db58 !important; outline-offset: 3px; }
