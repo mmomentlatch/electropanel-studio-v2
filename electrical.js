@@ -134,6 +134,9 @@
     if (!device || device.type !== "rcbo-afdd") throw new Error("Оберіть дифавтомат із ПВДП");
     device.type = "rcbo"; device.geometryId = M.defaultProfile("rcbo");
     delete device.dimensions; delete device.mounting;
+    const record = next.design?.circuits?.find((circuit) => circuit.deviceId === deviceId);
+    if (record) { record.i2A = null; record.icnA = null; record.minFaultA = null; record.letThroughA2s = null; record.shortCircuitTimeS = null; record.shortCircuitSource = ""; }
+    if (next.design?.supply) next.design.supply.dataConfirmed = false;
     return normalizeProject(M.repack(next));
   }
 

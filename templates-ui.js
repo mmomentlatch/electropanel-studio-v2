@@ -100,6 +100,7 @@ function renderDesignReport() {
     ${reportField("Дозволена потужність, кВт", "contractKw", supply.contractKw, "number", 'min="0.1" step="0.1"')}
     ${reportField("Напруга фаза–N, В (профіль 230/400 В)", "voltage", supply.voltage, "number", 'min="1" step="1"')}
     ${reportField("Iz ввідного кабелю, A", "feederIzA", supply.feederIzA, "number", 'min="1" step="0.1"')}
+    ${reportField("Переріз ввідного кабелю Cu, мм²", "feederSection", supply.feederSection, "number", 'min="1.5" step="0.5"')}
     ${reportField("I2 ввідного апарата, A", "i2A", supply.i2A, "number", 'min="1" step="0.1"')}
     ${reportField("Макс. очікуваний струм КЗ, A", "maxIccA", supply.maxIccA, "number", 'min="1" step="1"')}
     ${reportField("Вимикальна здатність вводу, A", "icnA", supply.icnA, "number", 'min="1" step="1"')}
@@ -107,12 +108,17 @@ function renderDesignReport() {
     <label class="field"><span>Заземлення на вводі</span><select data-design-supply="earthing"><option value="">Потрібно визначити</option>${["TN-S", "TN-C-S", "TT"].map((value) => `<option ${supply.earthing === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
     ${reportField("Прокладання, температура, групування", "installationMethod", supply.installationMethod, "text", 'maxlength="240"')}
     ${reportField("ПЗІП: оцінка потреби / захист будівлі", "surgeAssessment", supply.surgeAssessment, "text", 'maxlength="500"')}
-  </div><label class="check-label design-confirm"><input type="checkbox" data-design-supply="dataConfirmed" ${supply.dataConfirmed ? "checked" : ""}/> Вихідні дані звірено з ТУ/договором, паспортами та обстеженням. У TN-C-S поділ PEN виконано до цього щита.</label></div>
+  </div><details class="design-editor"><summary>Термічна стійкість ввідного кабелю при КЗ</summary><p class="design-description">I²t ≤ k²S² для часу до 5 с. I²t — пропущена енергія в A²·с із характеристики конкретного автомата для всього очікуваного діапазону КЗ. Це не I2 (струм у A). k задається за матеріалом, ізоляцією й температурами кабелю.</p><div class="design-input-grid">
+    ${reportField("Коефіцієнт k кабелю", "shortCircuitK", supply.shortCircuitK, "number", 'min="1" step="1"')}
+    ${reportField("Гранична I²t апарата, A²·с", "letThroughA2s", supply.letThroughA2s, "number", 'min="1" step="1"')}
+    ${reportField("Найбільший час вимкнення при КЗ, с", "shortCircuitTimeS", supply.shortCircuitTimeS, "number", 'min="0.001" max="5" step="0.001"')}
+    ${reportField("Джерело k, I²t, діапазон КЗ та час ≤5 с", "shortCircuitSource", supply.shortCircuitSource, "text", 'maxlength="500"')}
+  </div></details><label class="check-label design-confirm"><input type="checkbox" data-design-supply="dataConfirmed" ${supply.dataConfirmed ? "checked" : ""}/> Вихідні дані звірено з ТУ/договором, паспортами та обстеженням. У TN-C-S поділ PEN виконано до цього щита.</label></div>
   ${(project.design.rcdGroups || []).length ? `<div class="design-section"><h3>Групові ПЗВ та координація захисту</h3><p class="design-description">Автомат 1P захищає від надструму, групове ПЗВ — від диференційного струму. За кожним ПЗВ потрібна окрема N-шина. Ванна має окремий дифавтомат. Потреба в ПВДП перевіряється окремо; у базовому складі його немає.</p>${project.design.rcdGroups.map((group) => `<div class="design-input-grid"><strong>${escapeHtml(project.devices.find((device) => device.id === group.deviceId)?.label || "ПЗВ")}</strong><label class="field"><span>Умовна стійкість до КЗ, A</span><input type="number" min="1" data-design-group="conditionalIccA" data-group-id="${escapeHtml(group.deviceId)}" value="${escapeHtml(group.conditionalIccA ?? "")}"/></label><label class="field"><span>Паспорт / узгоджений захист</span><input data-design-group="coordinationSource" data-group-id="${escapeHtml(group.deviceId)}" value="${escapeHtml(group.coordinationSource || "")}" maxlength="240"/></label></div>`).join("")}</div>` : ""}
   <div class="design-section"><h3>2. Розрахункова відомість кіл</h3><p class="design-description">Ib = P × k / (U × cosφ). Коефіцієнт одночасності k задає проєктувальник; початково k = 1. Падіння напруги включає ділянку до щита. Метод оцінки кабелю: Cu, R = 23,7/S Ω/км, X = 0,08 Ω/км.</p>
     <div class="design-table-scroll"><table class="design-table"><thead><tr><th>Коло</th><th>Призначення</th><th>Фаза</th><th>P, кВт</th><th>k / cosφ</th><th>L, м</th><th>In, A</th><th>S, мм²</th><th>Iz / I2, A</th><th>Ib, A</th><th>ΔU, %</th><th>Стан</th></tr></thead><tbody>${calc.rows.map((row) => {
-      const errors = calc.errors.filter((issue) => issue.entityId === row.device.id).length;
-      const missing = calc.missing.filter((issue) => issue.entityId === row.device.id).length;
+      const errors = calc.errors.filter((issue) => issue.entityId === row.device.id || row.wireIds.includes(issue.entityId)).length;
+      const missing = calc.missing.filter((issue) => issue.entityId === row.device.id || row.wireIds.includes(issue.entityId)).length;
       return `<tr><td><strong>${escapeHtml(row.device.label)}</strong></td><td>${escapeHtml(row.device.name)}</td><td>${shown(row.device.phase)}</td><td>${number(row.device.load)}</td><td>${shown(row.spec.diversity)} / ${shown(row.spec.powerFactor)}</td><td>${shown(row.spec.lengthM)}</td><td>${row.rating?.amps ?? "—"}</td><td>${number(row.section)}</td><td>${shown(row.spec.izA)} / ${shown(row.spec.i2A)}</td><td>${row.ib === null ? "—" : number(row.ib)}</td><td>${row.totalDrop === null ? "—" : `${number(row.totalDrop)} / ${row.limit}`}</td><td class="${errors ? "text-error" : missing ? "text-pending" : "text-pass"}">${errors ? `${errors} пом.` : missing ? "Дані" : "Розрах. ✓"}</td></tr>`;
     }).join("")}</tbody></table></div>
     ${protectionPlanMarkup(project)}
@@ -132,6 +138,10 @@ function renderDesignReport() {
       ${reportField("Вимикальна здатність, A", "icnA", row.spec.icnA, "number", 'min="1" step="1"', row.device.id)}
       ${reportField("Мін. струм КЗ у кінці, A", "minFaultA", row.spec.minFaultA, "number", 'min="1" step="1"', row.device.id)}
       ${reportField("Джерело Iz / умови прокладання", "cableSource", row.spec.cableSource, "text", 'maxlength="240"', row.device.id)}
+      ${reportField("Коефіцієнт k кабелю для КЗ", "shortCircuitK", row.spec.shortCircuitK, "number", 'min="1" step="1"', row.device.id)}
+      ${reportField("Гранична I²t автомата, A²·с", "letThroughA2s", row.spec.letThroughA2s, "number", 'min="1" step="1"', row.device.id)}
+      ${reportField("Найбільший час вимкнення при КЗ, с", "shortCircuitTimeS", row.spec.shortCircuitTimeS, "number", 'min="0.001" max="5" step="0.001"', row.device.id)}
+      ${reportField("Джерело k, I²t, діапазон КЗ та час ≤5 с", "shortCircuitSource", row.spec.shortCircuitSource, "text", 'maxlength="500"', row.device.id)}
     </div><button class="button ghost" type="button" data-remove-design-circuit="${escapeHtml(row.device.id)}">Видалити коло</button></details>`).join("")}${project.design.circuits.filter((record) => !project.devices.some((device) => device.id === record.deviceId)).map((record) => `<p class="design-description">Апарат кола видалений. <button type="button" class="button ghost" data-remove-design-circuit="${escapeHtml(record.deviceId)}">Прибрати коло з відомості</button></p>`).join("")}</details>
   </div>
   <div class="design-section" id="designIssues" tabindex="-1"><h3>3. Перевірки й межі розрахунку</h3><div class="design-issue-groups">${issueGroups}</div><div class="engineering-review"><strong>Інженерна перевірка очікується</strong><p>${calc.engineeringReview}</p><p>Перевірка мінімального КЗ оцінює верхню межу миттєвої зони B/C/D і не замінює часову характеристику конкретного виробу. Робота виконується для України; застосовні редакції ДСТУ й паспортні дані потребують звірення.</p></div></div>
@@ -173,14 +183,13 @@ function updateDesignInput(event) {
   if (discrete || designInputTransaction !== input) snapshot();
   designInputTransaction = input;
   if (supplyField) {
-    project.design.supply[supplyField] = value;
-    if (supplyField === "earthing" && ["TN-S", "TN-C-S", "TT"].includes(value)) project.board.earthing = value;
+    D.updateSupply(project, supplyField, value);
   } else if (groupField) {
     const group = project.design.rcdGroups?.find((item) => item.deviceId === input.dataset.groupId);
     if (group) group[groupField] = value;
   } else if (deviceField) {
     const device = project.devices.find((item) => item.id === input.dataset.circuitId);
-    if (device) device[deviceField] = deviceField === "cable" ? String(value ?? "") : value;
+    if (device) D.updateDevice(project, device.id, { [deviceField]: deviceField === "cable" ? String(value ?? "") : value });
   } else {
     let circuit = project.design.circuits.find((item) => item.deviceId === input.dataset.circuitId);
     if (!circuit) { circuit = { deviceId: input.dataset.circuitId, rcdType: "A", rcdMa: 30, icnA: 6000 }; project.design.circuits.push(circuit); }
@@ -193,6 +202,7 @@ function updateDesignInput(event) {
     } else if (circuitField === "purpose") { if (!value) { delete circuit.lighting; delete circuit.wet; } else { circuit.lighting = value === "lighting"; circuit.wet = value === "bath"; } }
     else if (circuitField === "outputId") { circuit.outputId = value; circuit.outputKind = (project.consumers || []).some((consumer) => consumer.id === value) ? "consumer" : "device"; }
     else {
+      if (circuitField === "lengthM" && circuit.lengthM !== value) { circuit.minFaultA = null; circuit.letThroughA2s = null; circuit.shortCircuitTimeS = null; circuit.shortCircuitSource = ""; }
       circuit[circuitField] = value;
       if (circuitField === "lengthM") { delete circuit.lengthOrigin; if (project.floorPlan) project.floorPlan.syncWithCircuits = false; }
     }
@@ -201,13 +211,21 @@ function updateDesignInput(event) {
   persistProject();
   preserveDesignEditor = circuitField !== "rcdId";
   try { renderAll(); } finally { preserveDesignEditor = false; }
+  // Dependent evidence is cleared in the model; refresh its retained form controls too.
+  $("#designReport").querySelectorAll("[data-design-supply], [data-design-circuit], [data-design-group]").forEach((node) => {
+    if (node === input || node.tagName === "SELECT") return;
+    const record = node.dataset.designSupply ? project.design.supply : node.dataset.designGroup ? project.design.rcdGroups?.find((item) => item.deviceId === node.dataset.groupId) : project.design.circuits.find((item) => item.deviceId === node.dataset.circuitId);
+    const current = record?.[node.dataset.designSupply || node.dataset.designGroup || node.dataset.designCircuit];
+    if (node.type === "checkbox") node.checked = current === true;
+    else node.value = current ?? "";
+  });
 }
 
 function exportDesignCsv() {
   const calc = D.calculate(project);
   if (!calc) return;
-  const rows = [["Статус", calc.status], ["Технічний допуск", "Не видається автоматично"], ["Ревізія", project.design.revision], ["Погодження компоновки", calc.approvalCurrent ? "Актуальне" : "Немає актуального"], ["Вихідні дані вводу", JSON.stringify(project.design.supply)], [], ["Коло", "Призначення", "Фаза", "P кВт", "k", "cosφ", "L м", "In A", "S мм2", "Iz A", "I2 A", "Icn A", "Iкз min A", "Ib A", "ΔU сумарне %", "Ліміт %", "Джерело Iz"]];
-  calc.rows.forEach((row) => rows.push([row.device.label, row.device.name, row.device.phase, row.device.load, row.spec.diversity ?? "", row.spec.powerFactor ?? "", row.spec.lengthM ?? "", row.rating?.amps ?? "", row.section, row.spec.izA ?? "", row.spec.i2A ?? "", row.spec.icnA ?? "", row.spec.minFaultA ?? "", row.ib ?? "", row.totalDrop ?? "", row.limit, row.spec.cableSource ?? ""]));
+  const rows = [["Статус", calc.status], ["Технічний допуск", "Не видається автоматично"], ["Ревізія", project.design.revision], ["Погодження компоновки", calc.approvalCurrent ? "Актуальне" : "Немає актуального"], ["Вихідні дані вводу", JSON.stringify(project.design.supply)], [], ["Коло", "Призначення", "Фаза", "P кВт", "k", "cosφ", "L м", "In A", "S мм2", "Iz A", "I2 A", "Icn A", "Iкз min A", "Ib A", "ΔU сумарне %", "Ліміт %", "Джерело Iz", "k кабелю", "I²t A²с", "Час КЗ с", "k²S² A²с", "Джерело k / I²t"]];
+  calc.rows.forEach((row) => rows.push([row.device.label, row.device.name, row.device.phase, row.device.load, row.spec.diversity ?? "", row.spec.powerFactor ?? "", row.spec.lengthM ?? "", row.rating?.amps ?? "", row.section, row.spec.izA ?? "", row.spec.i2A ?? "", row.spec.icnA ?? "", row.spec.minFaultA ?? "", row.ib ?? "", row.totalDrop ?? "", row.limit, row.spec.cableSource ?? "", row.spec.shortCircuitK ?? "", row.spec.letThroughA2s ?? "", row.spec.shortCircuitTimeS ?? "", row.thermalLimitA2s ?? "", row.spec.shortCircuitSource ?? ""]));
   rows.push([], ["Підбір захисту кіл"], ["Коло", "Встановлений захист", "Вибір та умови"]);
   D.protectionPlan(project).forEach((entry) => rows.push([entry.name, entry.title, entry.reason]));
   rows.push([], ["Рівень", "Пункт перевірки"]);

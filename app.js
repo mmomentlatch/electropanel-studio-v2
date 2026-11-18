@@ -569,14 +569,9 @@ function bindInspectorInputs() {
       const device = project.devices.find((item) => item.id === selectedDeviceId);
       if (!device) return;
       snapshot();
-      device[key] = normalize(event.target.value);
-      if (project.design?.supply) project.design.supply.dataConfirmed = false;
+      D.updateDevice(project, device.id, { [key]: normalize(event.target.value) });
       persistProject();
-      renderBoard();
-      renderInspector();
-      renderDiagram();
-      renderBom();
-      renderWireReport();
+      renderAll();
     });
   });
 }

@@ -6,8 +6,8 @@
   "use strict";
   const M = typeof module === "object" && module.exports ? require("./mechanical.js") : globalThis.PanelMechanical;
   const F = typeof module === "object" && module.exports ? require("./floor-plan.js") : globalThis.PanelFloorPlan;
-  const REVISION = "residential-ua-2026.4";
-  const VERIFIED_DATE = "2026-11-14";
+  const REVISION = "residential-ua-2026.5";
+  const VERIFIED_DATE = "2026-11-18";
   const SOURCES = [
     { id: "dbn", title: "ДБН В.2.5-23:2025", url: "https://e-construction.gov.ua/laws_detail/3874238847093048425", scope: "Пункти 5.11, 7.24–7.26, 8.2–8.7: падіння напруги, дифзахист, ПВДП, КЗ і кабелі.", status: "Чинна картка ЄДЕССБ; вимоги звірено з доступним офіційним текстом." },
     { id: "pue", title: "ПУЕ:2026 · наказ №283 від 05.06.2026", url: "https://sies.gov.ua/zakonodavstvo/nakazi-minenergovugillya", scope: "Заземлення, захист, улаштування та перевірка електроустановок.", status: "Повний текст потребує звірення інженером; автоматична перевірка всіх пунктів не заявляється." },
@@ -17,6 +17,7 @@
     { id: "overload", title: "Schneider Electric · захист провідників", url: "https://www.electrical-installation.org/enwiki/Practical_values_for_a_protective_scheme", scope: "Методика перевірки Ib ≤ In ≤ Iz, I2 ≤ 1,45 Iz та вимикальної здатності.", status: "Довідкова методика виробника; не замінює національні норми." },
     { id: "drop", title: "Schneider Electric · падіння напруги", url: "https://www.electrical-installation.org/enwiki/Calculation_of_voltage_drop_in_steady_load_conditions", scope: "Однофазні лінії: ΔU = 2 Ib (R cosφ + X sinφ) L; R у Ω/км, L у км.", status: "Оцінка при R = 23,7/S для Cu, X = 0,08 Ω/км; уточнюється за паспортом кабелю." },
     { id: "curves", title: "Gewiss · характеристики B/C/D", url: "https://www.gewiss.com/ww/en/gwmag/innovation/thermal-magnetic-circuit-breaker-curves", scope: "Для попередньої перевірки прийняті верхні межі миттєвої зони 5/10/20 In.", status: "Характеристику та час вимкнення конкретного виробу необхідно звіряти з його документацією." },
+    { id: "thermal", title: "Schneider Electric · термічна стійкість кабелю при КЗ", url: "https://www.electrical-installation.org/enwiki/Verification_of_the_withstand_capabilities_of_cables_under_short-circuit_conditions", scope: "Перевірка пропущеної апаратом енергії I²t ≤ k²S² для часу до 5 с.", status: "k залежить від матеріалу, ізоляції та температур. Потрібна гранична I²t конкретного апарата для очікуваного діапазону струмів КЗ; I2 в амперах — інша величина." },
   ];
   const line = (key, name, kw, options = {}) => ({ key, name, kw, lighting: false, wet: false, lengthM: 20, ...options });
   const common = {
@@ -40,7 +41,7 @@
   const present = (value) => value !== "" && value !== null && value !== undefined && typeof value !== "boolean" && Number.isFinite(Number(value));
   const positive = (value) => present(value) && Number(value) > 0;
   const breaker = (device) => {
-    const match = String(device?.rating || "").match(/^\s*([BCD])\s*(\d+(?:[.,]\d+)?)/i);
+    const match = String(device?.rating || "").match(/^\s*([BCD])\s*(\d+(?:[.,]\d+)?)(?=\s*(?:A\b|\/|$))/i);
     const amps = match && Number(match[2].replace(",", "."));
     return match && Number.isFinite(amps) && amps > 0 ? { curve: match[1].toUpperCase(), amps } : null;
   };
@@ -68,6 +69,80 @@
   function voltageDrop(amps, lengthM, section, powerFactor = 1) {
     const sin = Math.sqrt(Math.max(0, 1 - powerFactor * powerFactor));
     return 2 * amps * (23.7 / section * powerFactor + .08 * sin) * lengthM / 1000;
+  }
+
+  const thermalCapacity = (section, k) => positive(section) && positive(k) ? (Number(section) * Number(k)) ** 2 : null;
+  function clearCableEvidence(record, feeder = false) {
+    if (!record) return;
+    record[feeder ? "feederIzA" : "izA"] = null;
+    if (!feeder) { record.cableSource = ""; record.minFaultA = null; }
+    record.shortCircuitK = null; record.letThroughA2s = null; record.shortCircuitTimeS = null; record.shortCircuitSource = "";
+  }
+  // Called by both editors. Drawing dimensions and electrical evidence must not drift apart.
+  function updateDevice(p, deviceId, changes) {
+    const device = p.devices.find((item) => item.id === deviceId);
+    if (!device) return;
+    const record = p.design?.circuits?.find((item) => item.deviceId === deviceId);
+    const supply = p.design?.supply, feeder = device.type.startsWith("main-");
+    const changed = (key) => Object.hasOwn(changes, key) && String(changes[key] ?? "") !== String(device[key] ?? "");
+    const cableChanged = changed("cable"), ratingChanged = changed("rating") || changed("type"), phaseChanged = changed("phase");
+    const oldSection = Number(device.cable);
+    if (cableChanged) {
+      // Only dedicated consumer leads matching the previous size follow the cable selection.
+      // Shared feeds, intermediate connections and manually different leads stay explicit.
+      if (record?.outputKind === "consumer" && positive(changes.cable)) p.wires.forEach((wire) => {
+        if (wire.material === "Cu" && Number(wire.section) === oldSection && [wire.from, wire.to].some((end) => end.kind === "consumer" && end.ownerId === record.outputId)) wire.section = Number(changes.cable);
+      });
+      clearCableEvidence(record);
+      if (feeder && supply) { supply.feederSection = positive(changes.cable) ? Number(changes.cable) : null; clearCableEvidence(supply, true); }
+    }
+    if (ratingChanged || phaseChanged) {
+      const evidence = feeder ? supply : record;
+      if (evidence) { evidence.i2A = null; evidence.icnA = null; evidence.letThroughA2s = null; evidence.shortCircuitTimeS = null; evidence.shortCircuitSource = ""; if (!feeder) evidence.minFaultA = null; }
+      (p.design?.rcdGroups || []).filter((group) => feeder || group.deviceId === deviceId).forEach((group) => { group.conditionalIccA = null; group.coordinationSource = ""; });
+    }
+    Object.assign(device, changes);
+    if (supply) supply.dataConfirmed = false;
+    return device;
+  }
+  function updateSupply(p, key, value) {
+    const supply = p.design?.supply;
+    if (!supply) return;
+    const changed = String(supply[key] ?? "") !== String(value ?? "");
+    if (changed && key === "feederSection") {
+      const incoming = p.devices.find((device) => device.type.startsWith("main-"));
+      if (incoming) updateDevice(p, incoming.id, { cable: String(value ?? "") });
+      clearCableEvidence(supply, true);
+    }
+    if (changed && key === "installationMethod") {
+      clearCableEvidence(supply, true);
+      (p.design.circuits || []).forEach((record) => clearCableEvidence(record));
+    }
+    if (changed && key === "maxIccA") [supply, ...(p.design.circuits || [])].forEach((record) => { record.letThroughA2s = null; record.shortCircuitTimeS = null; record.shortCircuitSource = ""; });
+    supply[key] = value;
+    if (key === "earthing" && ["TN-S", "TN-C-S", "TT"].includes(value)) p.board.earthing = value;
+    supply.dataConfirmed = key === "dataConfirmed" ? value === true : false;
+    if (key === "dataConfirmed" && value === true) p.design.revision = REVISION;
+  }
+  function circuitLeads(p, device, record, physical) {
+    const live = ref(device.id, "L-out");
+    return p.wires.filter((wire) => (wire.potential === device.phase && E.resolveEndpoint(p, wire.from) && physical.find(live) === physical.find(wire.from)) || record.outputId && [wire.from, wire.to].some((end) => end.kind === (record.outputKind === "consumer" ? "consumer" : "device") && end.ownerId === record.outputId));
+  }
+  function invalidateWireEvidence(p, wire, changed) {
+    if (!p.design) return;
+    const cableChanged = Number(wire.section) !== Number(changed.section) || wire.material !== changed.material;
+    if (!cableChanged && wire.lengthM === changed.lengthM && wire.wireType === changed.wireType) return;
+    const physical = E.connectivity(p, { isolateProtection: true });
+    const affected = (p.design.circuits || []).filter((record) => {
+      const device = p.devices.find((item) => item.id === record.deviceId);
+      return device && circuitLeads(p, device, record, physical).some((lead) => lead.id === wire.id);
+    });
+    const records = affected.length ? affected : [p.design.supply, ...(p.design.circuits || [])];
+    records.filter(Boolean).forEach((record) => {
+      if (cableChanged || wire.wireType !== changed.wireType) clearCableEvidence(record, record === p.design.supply);
+      else { record.minFaultA = null; record.letThroughA2s = null; record.shortCircuitTimeS = null; record.shortCircuitSource = ""; }
+    });
+    if (p.design.supply) p.design.supply.dataConfirmed = false;
   }
 
   function createTemplate(templateId, settings = {}) {
@@ -240,6 +315,13 @@
     const add = (level, code, text, entityId = "board") => issues.push({ level, code, text, entityId });
     const pending = (condition, code, text, entityId) => { if (!condition) add("pending", code, text, entityId); };
     const check = (condition, code, text, entityId) => { if (!condition) add("error", code, text, entityId); };
+    const checkThermal = (record, section, prefix, entityId = "board") => {
+      const capacity = thermalCapacity(section, record.shortCircuitK);
+      pending(capacity !== null && Number.isFinite(capacity) && positive(record.letThroughA2s) && positive(record.shortCircuitTimeS) && Boolean(String(record.shortCircuitSource || "").trim()), `${prefix}-thermal-data`, `${entityId === "board" ? "Ввід" : p.devices.find((d) => d.id === entityId)?.label}: потрібні k кабелю, гранична пропущена енергія I²t та час вимкнення з джерелом для очікуваного діапазону КЗ (до 5 с).`, entityId);
+      if (positive(record.shortCircuitTimeS)) check(Number(record.shortCircuitTimeS) <= 5, `${prefix}-thermal-time`, "Адіабатична перевірка k²S² підтримує час до 5 с; для більшого часу потрібна окрема модель.", entityId);
+      if (capacity !== null && positive(record.letThroughA2s)) check(Number(record.letThroughA2s) <= capacity, `${prefix}-thermal`, `${entityId === "board" ? "Ввід" : p.devices.find((d) => d.id === entityId)?.label}: пропущена енергія I²t перевищує термічну стійкість k²S² кабелю.`, entityId);
+      return capacity;
+    };
     if (p.floorPlan) {
       const ids = new Set(F.branches(p).map((circuit) => circuit.id));
       pending(!(p.floorPlan.circuits?.length || p.floorPlan.excludedCircuitIds?.length), "floor-circuits-pending", "Кола плану змінені окремо від щита. Перегляньте їх і оновіть щит кнопкою «Перезібрати щит за планом».");
@@ -257,7 +339,7 @@
     if (positive(supply.voltage)) check(Number(supply.voltage) === 230, "unsupported-voltage", "Цей житловий профіль розрахований на фазну напругу 230 В (230/400 В). Інші системи потребують окремої моделі.");
     const phases = Number(supply.phases);
     const phaseCurrents = { L1: 0, L2: 0, L3: 0 };
-    pending(design.revision === REVISION, "revision", "Версію шаблону або розрахункових правил потрібно актуалізувати.");
+    pending(design.revision === REVISION, "revision", "Розрахункові правила оновлено. Перевірте нові зауваження та повторно підтвердьте вихідні дані об’єкта.");
     pending(design.profile === "UA", "national-profile", "Наразі підтримується тільки нормативний профіль України.");
     pending(supply.dataConfirmed === true, "source-data", "Звірте вихідні дані з ТУ, договором, паспортами та обстеженням об’єкта.");
     pending(["TN-S", "TN-C-S", "TT"].includes(supply.earthing), "earthing", "Потрібна фактична система заземлення; TN-C не підтримується цими шаблонами.");
@@ -273,6 +355,10 @@
     check(Boolean(main) && [1, 3].includes(phases), "incoming", "Перевірте ввідний автомат, його характеристику та кількість фаз.");
     if (incoming && [1, 3].includes(phases)) check(phases === 3 ? incoming.type === "main-3p" || incoming.type === "main-4p" : incoming.type === "main-2p", "incoming-phases", "Ввідний апарат не відповідає кількості фаз вихідних даних.");
     if (main && positive(supply.feederIzA)) check(main.amps <= Number(supply.feederIzA), "feeder-overload", "Номінал ввідного автомата перевищує Iz ввідного кабелю.");
+    pending(positive(supply.feederSection), "feeder-section", "Потрібен переріз мідного ввідного кабелю.");
+    if (positive(supply.feederSection)) check(Number(supply.feederSection) >= 1.5, "feeder-section", "Цей профіль не підтримує силовий ввід менше 1,5 мм² Cu; одного мінімуму недостатньо для вибору перерізу.");
+    if (incoming && positive(supply.feederSection)) check(Number(incoming.cable) === Number(supply.feederSection), "feeder-section-mismatch", "Переріз вводу у властивостях апарата й розрахункових даних відрізняється.");
+    if (main && positive(supply.i2A)) check(Number(supply.i2A) >= main.amps, "incoming-i2-range", "I2 ввідного автомата не може бути меншим за його номінальний струм In.");
     if (positive(supply.i2A) && positive(supply.feederIzA)) check(Number(supply.i2A) <= 1.45 * Number(supply.feederIzA), "feeder-conventional", "I2 ввідного апарата перевищує 1,45 Iz ввідного кабелю.");
     if (positive(supply.maxIccA)) check(positive(supply.icnA) && Number(supply.icnA) >= Number(supply.maxIccA), "incoming-icn", "Вимикальна здатність ввідного апарата недостатня або не задана.");
     E.validate(p).filter((issue) => issue.level === "error").forEach((issue) => add("error", issue.code, issue.text, issue.entityId));
@@ -280,6 +366,12 @@
     const nBar = p.busbars.find((bar) => bar.potential === "N" && !bar.rcdId);
     const peBar = p.busbars.find((bar) => bar.potential === "PE");
     const connected = (a, b) => Boolean(a && b && E.resolveEndpoint(p, a) && E.resolveEndpoint(p, b) && physical.find(a) === physical.find(b));
+    const feederLeads = incoming ? p.wires.filter((wire) => E.PHASES.includes(wire.potential) && connected(ref(incoming.id, phases === 1 ? "L-out" : `${wire.potential}-out`), wire.from) && ![wire.from, wire.to].some((end) => p.devices.find((d) => d.id === end.ownerId)?.type.startsWith("spd-"))) : [];
+    feederLeads.forEach((wire) => {
+      check(wire.material === "Cu", "circuit-material", `${wire.label}: профіль вводу підтримує мідні провідники.`, wire.id);
+      if (positive(supply.feederSection) && positive(wire.section)) check(Number(wire.section) >= Number(supply.feederSection), "feeder-wire-section", `${wire.label}: провід живлення ${wire.section} мм² менший за переріз вводу ${supply.feederSection} мм². Для іншого перерізу потрібен окремий розрахунок внутрішньої ділянки.`, wire.id);
+    });
+    checkThermal(supply, Math.min(Number(supply.feederSection), ...feederLeads.filter((wire) => positive(wire.section)).map((wire) => Number(wire.section))), "feeder");
     const records = Array.isArray(design.circuits) ? design.circuits : [];
     const seenCircuits = new Set();
     records.forEach((record) => { check(!seenCircuits.has(record.deviceId), "duplicate-circuit", "Один апарат повторений у розрахункових колах.", record.deviceId); seenCircuits.add(record.deviceId); });
@@ -311,9 +403,11 @@
       pending(Boolean(String(spec.cableSource || "").trim()), "cable-source", `${device.label}: зазначте джерело Iz і умови прокладання.`, device.id);
       if (rating && positive(spec.izA)) check(rating.amps <= Number(spec.izA), "cable-overload", `${device.label}: In перевищує Iz кабелю.`, device.id);
       pending(positive(spec.i2A), "conventional-trip", `${device.label}: потрібен умовний струм вимкнення I2 з документації апарата.`, device.id);
+      if (rating && positive(spec.i2A)) check(Number(spec.i2A) >= rating.amps, "conventional-range", `${device.label}: I2 не може бути меншим за номінальний струм In.`, device.id);
       if (positive(spec.i2A) && positive(spec.izA)) check(Number(spec.i2A) <= 1.45 * Number(spec.izA), "conventional-overload", `${device.label}: I2 перевищує 1,45 Iz кабелю.`, device.id);
       if (positive(supply.maxIccA)) check(positive(spec.icnA) && Number(spec.icnA) >= Number(supply.maxIccA), "branch-icn", `${device.label}: вимикальна здатність менша за очікуваний струм КЗ.`, device.id);
       pending(positive(spec.minFaultA), "fault-min", `${device.label}: потрібен мінімальний струм КЗ у кінці кола.`, device.id);
+      if (positive(spec.minFaultA) && positive(supply.maxIccA)) check(Number(spec.minFaultA) <= Number(supply.maxIccA), "fault-range", `${device.label}: мінімальний струм КЗ у кінці кола перевищує максимальний струм КЗ на шинах. Перевірте вихідні дані.`, device.id);
       if (rating && positive(spec.minFaultA)) check(Number(spec.minFaultA) >= ({ B: 5, C: 10, D: 20 }[rating.curve] * rating.amps), "magnetic-trip", `${device.label}: не підтверджено верхню межу миттєвого розчеплення; перевірте часову характеристику.`, device.id);
       pending(positive(spec.lengthM), "cable-length", `${device.label}: потрібна довжина кабельної траси.`, device.id);
       if (spec.lengthOrigin === "floor-plan") {
@@ -343,7 +437,14 @@
       check(Boolean(topology), "circuit-wiring", `${device.label}: перевірте L/N до і після захисту, PE та відсутність обходу апарата.`, device.id);
       const parallel = p.devices.filter(isBranch).some((other) => other.id !== device.id && connected(ref(device.id, "L-out"), ref(other.id, "L-out")));
       check(!parallel, "parallel-outputs", `${device.label}: виходи різних захисних апаратів об’єднані.`, device.id);
-      return { device, spec, rating, ib, localDrop, totalDrop, limit, section, topology: Boolean(topology) };
+      const leads = circuitLeads(p, device, spec, physical);
+      leads.forEach((wire) => {
+        check(wire.material === "Cu", "circuit-material", `${device.label} / ${wire.label}: розрахунок кола підтримує мідь. Для іншого матеріалу потрібна окрема модель.`, wire.id);
+        if (positive(section) && positive(wire.section)) check(Number(wire.section) >= section, "circuit-wire-section", `${device.label} / ${wire.label}: провід ${wire.section} мм² менший за розрахунковий переріз кола ${section} мм². Узгодьте провід і кабель або виконайте окремий розрахунок ділянки.`, wire.id);
+      });
+      const effectiveSection = Math.min(section, ...leads.filter((wire) => positive(wire.section)).map((wire) => Number(wire.section)));
+      const thermalLimitA2s = checkThermal(spec, effectiveSection, "branch", device.id);
+      return { device, spec, rating, ib, localDrop, totalDrop, limit, section, effectiveSection, thermalLimitA2s, wireIds: leads.map((wire) => wire.id), topology: Boolean(topology) };
     });
     const powerKw = rows.reduce((sum, row) => sum + (Number.isFinite(Number(row.device.load)) && present(row.spec.diversity) ? Number(row.device.load) * Number(row.spec.diversity) : 0), 0);
     if (positive(supply.contractKw)) check(powerKw <= Number(supply.contractKw) + 1e-9, "contract-overload", "Розрахункова потужність перевищує дозволену за договором/ТУ.");
@@ -352,5 +453,5 @@
     const missing = issues.filter((issue) => issue.level === "pending");
     return { rows, issues, errors, missing, powerKw, phaseCurrents, calculationPassed: !errors.length && !missing.length, installationReady: false, approvalCurrent: approvalCurrent(p), status: errors.length ? "Потрібні виправлення" : missing.length ? "Потрібні вихідні дані" : "Розрахункові перевірки пройдені", engineeringReview: "Потрібні перевірка повного нормативного профілю, паспортів, селективності, I²t, нагрівання щита, ПЗІП, заземлення й протоколи перевірок. Автоматичний дозвіл до монтажу не видається." };
   }
-  return { REVISION, VERIFIED_DATE, SOURCES, TEMPLATES, createTemplate, protectionPlan, calculate, current, voltageDrop, breaker, isBranch, fingerprint, approvalCurrent, approveLayout };
+  return { REVISION, VERIFIED_DATE, SOURCES, TEMPLATES, createTemplate, protectionPlan, calculate, current, voltageDrop, thermalCapacity, updateDevice, updateSupply, invalidateWireEvidence, breaker, isBranch, fingerprint, approvalCurrent, approveLayout };
 });

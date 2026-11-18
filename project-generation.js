@@ -76,6 +76,8 @@
     if (circuits.some((circuit) => circuit.merged)) notes.push("Кола, з’єднані спільною дозою або послідовним кабелем, об’єднано під одним захистом.");
     if (analysis.omitted) notes.push(`${analysis.omitted} точок без споживача залишаться без прив’язки до автомата.`);
     notes.push("Номінали й перерізи — початковий підбір. Потрібно перевірити вихідні дані, навантаження та зауваження в «Розрахунках».");
+    const overloads = D.calculate(next).rows.filter((row) => row.ib !== null && row.rating && row.ib > row.rating.amps);
+    if (overloads.length) notes.push(`Навантаження перевищує номінал захисту: ${overloads.map((row) => `${row.device.label} (${row.ib.toFixed(1)} A > ${row.rating.amps} A)`).join(", ")}. Розділіть кола або перевірте інший захист і кабель; автоматичне збільшення номіналу не виконується.`);
     const routing = F.calculate(next);
     if (routing.errors.length) notes.push(`Не для всіх точок знайдено прохідну трасу (${routing.errors.length} зауважень). Геометрію збережено; перевірте двері та відкриті стіни.`);
     return { project: next, circuits, notes, routing };

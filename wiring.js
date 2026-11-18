@@ -573,7 +573,7 @@ function updateSelectedWire() {
   const candidate = { ...project, wires: project.wires.map((item) => item.id === wire.id ? changed : item) };
   const error = E.validate(candidate).find((issue) => issue.level === "error" && issue.entityId === wire.id);
   if (error) { toast(error.text, "error"); renderWiringInspector(); return; }
-  snapshot(); Object.assign(wire, changed); persistProject(); renderAll();
+  snapshot(); D.invalidateWireEvidence(project, wire, changed); Object.assign(wire, changed); persistProject(); renderAll();
 }
 
 function deleteWiringEntity(kind, entityId) {

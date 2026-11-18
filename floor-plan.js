@@ -453,7 +453,9 @@
     (next.design?.circuits || []).forEach((record) => {
       const circuit = result.circuits.find((c) => c.deviceId === record.deviceId);
       if (!circuit && record.lengthOrigin !== "floor-plan") return;
-      record.lengthM = circuit && !circuit.incomplete ? Math.ceil(circuit.longestPathM * 10) / 10 : null;
+      const lengthM = circuit && !circuit.incomplete ? Math.ceil(circuit.longestPathM * 10) / 10 : null;
+      if (record.lengthM !== lengthM) { record.minFaultA = null; record.letThroughA2s = null; record.shortCircuitTimeS = null; record.shortCircuitSource = ""; }
+      record.lengthM = lengthM;
       record.lengthOrigin = "floor-plan";
     });
     next.floorPlan.syncWithCircuits = true;
