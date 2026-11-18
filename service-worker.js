@@ -1,12 +1,69 @@
 const SCOPE = new URL(self.registration.scope);
 const CACHE_PREFIX = `electropanel-studio-v2-${encodeURIComponent(SCOPE.pathname)}-`;
-const CACHE = `${CACHE_PREFIX}v233`;
+const CACHE = `${CACHE_PREFIX}v235`;
 const INDEX_URL = new URL("index.html", SCOPE).href;
 const ASSETS = [
-  "./", "./index.html", "./viewport.js?v=233", "./styles.css?v=233", "./buttons.css?v=233", "./wiring.css?v=233", "./templates.css?v=233", "./control-devices.js?v=233", "./mechanical.js?v=233", "./mechanical-ui.js?v=233", "./protection-face.js?v=233", "./device-visuals.js?v=233", "./rail-layout.js?v=233", "./mechanical.css?v=233", "./schematic.js?v=233", "./schematic-ui.js?v=233", "./schematic.css?v=233", "./floor-geometry.js?v=233", "./floor-geometry-ui.js?v=233", "./floor-ux-ui.js?v=233", "./floor-circuits-ui.js?v=233", "./floor-plan.js?v=233", "./floor-pencil.js?v=233", "./floor-partition.js?v=233", "./vendor/polygon-clipping-0.15.7.js?v=233", "./floor-pencil-ui.js?v=233", "./floor-svg.js?v=233", "./floor-plan-ui.js?v=233", "./floor-plan.css?v=233", "./electrical.js?v=233", "./design.js?v=233", "./project-generation.js?v=233", "./project-generation-ui.js?v=233", "./wiring.js?v=233", "./controls-ui.js?v=233", "./templates-ui.js?v=233", "./project-store.js?v=233", "./form-drafts.js?v=233", "./floor-forms-ui.js?v=233", "./project-issues.js?v=233", "./project-issues-ui.js?v=233", "./app.js?v=233", "./ui-help.js?v=233", "./cable-report.js?v=233", "./cable-report-ui.js?v=233", "./manifest.webmanifest",
-  "./assets/devices/mcb-1p.png", "./assets/devices/rccb-2p.png", "./assets/devices/spd-2p.png",
-  "./assets/devices/contactor.png", "./assets/devices/voltage-relay.png", "./assets/devices/energy-meter.png",
-  "./assets/devices/terminal-block.png", "./assets/devices/power-supply.svg", "./assets/devices/control-relay.svg", "./assets/devices/timer-relay.svg", "./assets/devices/contactor-2p.svg", "./assets/devices/contactor-3p.svg", "./assets/devices/motor-protection.svg", "./assets/devices/indicator.svg", "./assets/devices/outlet.svg", "./assets/devices/rccb-2p.svg", "./assets/devices/rccb-4p.svg", "./assets/devices/rcbo.svg", "./assets/devices/rcbo-afdd.svg"
+  "./",
+  "./index.html",
+  "./language.js?v=235",
+  "./language-data.js?v=235",
+  "./boot.js?v=235",
+  "./runtime-uk.js?v=235",
+  "./runtime-en.js?v=235",
+  "./runtime-ru.js?v=235",
+  "./language.css?v=235",
+  "./site.css?v=235",
+  "./assets/brand/logo.svg?v=235",
+  "./assets/brand/social-card.png?v=235",
+  "./robots.txt",
+  "./sitemap.xml",
+  "./404.html",
+  "./README.md",
+  "./styles.css?v=235",
+  "./buttons.css?v=235",
+  "./wiring.css?v=235",
+  "./templates.css?v=235",
+  "./mechanical.css?v=235",
+  "./schematic.css?v=235",
+  "./floor-plan.css?v=235",
+  "./manifest.webmanifest",
+  "./assets/devices/mcb-1p.png",
+  "./assets/devices/rccb-2p.png",
+  "./assets/devices/spd-2p.png",
+  "./assets/devices/contactor.png",
+  "./assets/devices/voltage-relay.png",
+  "./assets/devices/energy-meter.png",
+  "./assets/devices/terminal-block.png",
+  "./assets/devices/power-supply.svg",
+  "./assets/devices/control-relay.svg",
+  "./assets/devices/timer-relay.svg",
+  "./assets/devices/contactor-2p.svg",
+  "./assets/devices/contactor-3p.svg",
+  "./assets/devices/motor-protection.svg",
+  "./assets/devices/indicator.svg",
+  "./assets/devices/outlet.svg",
+  "./assets/devices/rccb-2p.svg",
+  "./assets/devices/rccb-4p.svg",
+  "./assets/devices/rcbo.svg",
+  "./assets/devices/rcbo-afdd.svg",
+  "./uk/index.html",
+  "./uk/panel-designer/index.html",
+  "./uk/single-line-diagram/index.html",
+  "./uk/wiring-plan/index.html",
+  "./uk/cable-schedule/index.html",
+  "./uk/circuit-breaker-and-cable/index.html",
+  "./en/index.html",
+  "./en/panel-designer/index.html",
+  "./en/single-line-diagram/index.html",
+  "./en/wiring-plan/index.html",
+  "./en/cable-schedule/index.html",
+  "./en/circuit-breaker-and-cable/index.html",
+  "./ru/index.html",
+  "./ru/panel-designer/index.html",
+  "./ru/single-line-diagram/index.html",
+  "./ru/wiring-plan/index.html",
+  "./ru/cable-schedule/index.html",
+  "./ru/circuit-breaker-and-cable/index.html"
 ];
 
 self.addEventListener("install", (event) => {
@@ -24,7 +81,16 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(fetch(event.request).then((response) => {
       if (response.ok && (url.pathname === SCOPE.pathname || url.href === INDEX_URL)) { const copy = response.clone(); event.waitUntil(caches.open(CACHE).then((cache) => cache.put(INDEX_URL, copy))); }
       return response;
-    }).catch(() => caches.open(CACHE).then((cache) => cache.match(INDEX_URL))));
+    }).catch(() => caches.open(CACHE).then(async (cache) => {
+      const entry = url.pathname === SCOPE.pathname || url.pathname === new URL(INDEX_URL).pathname;
+      if (entry) return cache.match(INDEX_URL);
+      const page = new URL(url.href); page.search = ""; page.hash = "";
+      if (page.pathname.endsWith("/")) page.pathname += "index.html";
+      const cached = await cache.match(page.href);
+      if (cached) return cached;
+      const missing = await cache.match(new URL("404.html", SCOPE).href);
+      return new Response(missing ? await missing.text() : "Offline", { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } });
+    })));
     return;
   }
   event.respondWith(caches.open(CACHE).then((cache) => cache.match(event.request)).then((cached) => cached || fetch(event.request).then((response) => {

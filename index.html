@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="uk">
+<html lang="uk" data-app-loading>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,21 +7,26 @@
       name="description"
       content="ElectroPanel Studio — легкий браузерний редактор електричних щитів"
     />
+    <meta name="robots" content="noindex,follow" />
+    <link rel="icon" type="image/svg+xml" href="https://mmomentlatch.github.io/electropanel-studio-v2/assets/brand/logo.svg"/><meta property="og:type" content="website"/><meta property="og:title" content="ElectroPanel Studio — Electrical Panel & Wiring Designer"/><meta property="og:description" content="Design DIN-rail panels, single-line diagrams and floor wiring plans in your browser. Ukrainian engineering profile."/><meta property="og:url" content="https://mmomentlatch.github.io/electropanel-studio-v2/"/><meta property="og:image" content="https://mmomentlatch.github.io/electropanel-studio-v2/assets/brand/social-card.png"/><meta name="twitter:card" content="summary_large_image"/>
     <meta name="theme-color" content="#101a24" />
     <title>ElectroPanel Studio 2</title>
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=233" />
-    <link rel="stylesheet" href="wiring.css?v=233" />
-    <link rel="stylesheet" href="templates.css?v=233" />
-    <link rel="stylesheet" href="mechanical.css?v=233" />
-    <link rel="stylesheet" href="schematic.css?v=233" />
-    <link rel="stylesheet" href="floor-plan.css?v=233" />
-    <link rel="stylesheet" href="buttons.css?v=233" />
+    <link rel="stylesheet" href="styles.css?v=235" />
+    <link rel="stylesheet" href="wiring.css?v=235" />
+    <link rel="stylesheet" href="templates.css?v=235" />
+    <link rel="stylesheet" href="mechanical.css?v=235" />
+    <link rel="stylesheet" href="schematic.css?v=235" />
+    <link rel="stylesheet" href="floor-plan.css?v=235" />
+    <link rel="stylesheet" href="buttons.css?v=235" />
+    <link rel="stylesheet" href="language.css?v=235" />
   </head>
-  <body>
+  <body aria-busy="true">
+    <p id="appLoading" role="status">Завантаження редактора…</p>
+    <noscript><p>Редактор потребує JavaScript. <a href="./uk/">Про сервіс ElectroPanel Studio</a></p></noscript>
     <div class="app-shell">
       <header class="topbar">
-        <a class="brand" href="#" aria-label="ElectroPanel Studio">
+        <a class="brand" href="./uk/" data-service-home aria-label="ElectroPanel Studio">
           <span class="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 32 32" role="img">
               <path d="M17.7 2.5 7.2 17h7.1l-1.5 12.5L24.8 14h-7.3l.2-11.5Z" />
@@ -42,6 +47,7 @@
         </div>
 
         <nav class="top-actions" aria-label="Дії з проєктом">
+          <label class="language-switch"><select id="languageSelect" aria-label="Мова інтерфейсу" title="Мова інтерфейсу"><option value="uk" translate="no">UK</option><option value="en" translate="no">EN</option><option value="ru" translate="no">RU</option></select></label>
           <button class="icon-button" id="newProjectButton" type="button" title="Новий проєкт">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
           </button>
@@ -644,41 +650,8 @@
     <div class="toast-region" id="toastRegion" aria-live="polite"></div>
 
     <div class="modal-backdrop hidden" id="formDraftsModal"><section class="modal-card form-drafts-modal" role="dialog" aria-modal="true" aria-labelledby="formDraftsTitle"><button type="button" class="modal-close" data-close-modal aria-label="Закрити"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button><h2 id="formDraftsTitle">Незастосовані зміни</h2><p id="formDraftsStorage"></p><ul id="formDraftsList"></ul></section></div>
-    <script defer src="viewport.js?v=233"></script>
-    <script defer src="control-devices.js?v=233"></script>
-    <script defer src="mechanical.js?v=233"></script>
-    <script defer src="vendor/polygon-clipping-0.15.7.js?v=233"></script>
-    <script defer src="floor-geometry.js?v=233"></script>
-    <script defer src="floor-plan.js?v=233"></script>
-    <script defer src="floor-partition.js?v=233"></script>
-    <script defer src="floor-pencil.js?v=233"></script>
-    <script defer src="floor-svg.js?v=233"></script>
-    <script defer src="electrical.js?v=233"></script>
-    <script defer src="design.js?v=233"></script>
-    <script defer src="project-generation.js?v=233"></script>
-    <script defer src="cable-report.js?v=233"></script>
-    <script defer src="cable-report-ui.js?v=233"></script>
-    <script defer src="schematic.js?v=233"></script>
-    <script defer src="wiring.js?v=233"></script>
-    <script defer src="project-issues.js?v=233"></script>
-    <script defer src="project-issues-ui.js?v=233"></script>
-    <script defer src="templates-ui.js?v=233"></script>
-    <script defer src="controls-ui.js?v=233"></script>
-    <script defer src="rail-layout.js?v=233"></script>
-    <script defer src="protection-face.js?v=233"></script>
-    <script defer src="device-visuals.js?v=233"></script>
-    <script defer src="mechanical-ui.js?v=233"></script>
-    <script defer src="schematic-ui.js?v=233"></script>
-    <script defer src="form-drafts.js?v=233"></script>
-    <script defer src="floor-plan-ui.js?v=233"></script>
-    <script defer src="floor-geometry-ui.js?v=233"></script>
-    <script defer src="floor-ux-ui.js?v=233"></script>
-    <script defer src="floor-circuits-ui.js?v=233"></script>
-    <script defer src="floor-forms-ui.js?v=233"></script>
-    <script defer src="floor-pencil-ui.js?v=233"></script>
-    <script defer src="project-store.js?v=233"></script>
-    <script defer src="ui-help.js?v=233"></script>
-    <script defer src="project-generation-ui.js?v=233"></script>
-    <script defer src="app.js?v=233"></script>
+<script defer src="language-data.js?v=235"></script>
+    <script defer src="language.js?v=235"></script>
+    <script defer src="boot.js?v=235"></script>
   </body>
 </html>
