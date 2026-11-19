@@ -5213,7 +5213,7 @@ function sizeFloorCanvas() {
   // or enlarge the drawing area when the document is scrolled.
   const top = canvas.getBoundingClientRect().top - view.getBoundingClientRect().top + view.scrollTop;
   const help = $(".floor-navigation-help").offsetHeight;
-  const height = `${Math.max(180, Math.floor(view.clientHeight - top - help - 8))}px`;
+  const height = `${Math.max(180, Math.floor(view.clientHeight - top - help))}px`;
   if (canvas.style.height !== height) canvas.style.height = height;
   view.style.setProperty("--floor-toolbar-height", `${$(".floor-toolbar").offsetHeight}px`);
 }

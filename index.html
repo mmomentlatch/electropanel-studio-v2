@@ -12,14 +12,14 @@
     <meta name="theme-color" content="#101a24" />
     <title>ElectroPanel Studio 2</title>
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=235" />
-    <link rel="stylesheet" href="wiring.css?v=235" />
-    <link rel="stylesheet" href="templates.css?v=235" />
-    <link rel="stylesheet" href="mechanical.css?v=235" />
-    <link rel="stylesheet" href="schematic.css?v=235" />
-    <link rel="stylesheet" href="floor-plan.css?v=235" />
-    <link rel="stylesheet" href="buttons.css?v=235" />
-    <link rel="stylesheet" href="language.css?v=235" />
+    <link rel="stylesheet" href="styles.css?v=236" />
+    <link rel="stylesheet" href="wiring.css?v=236" />
+    <link rel="stylesheet" href="templates.css?v=236" />
+    <link rel="stylesheet" href="mechanical.css?v=236" />
+    <link rel="stylesheet" href="schematic.css?v=236" />
+    <link rel="stylesheet" href="floor-plan.css?v=236" />
+    <link rel="stylesheet" href="buttons.css?v=236" />
+    <link rel="stylesheet" href="language.css?v=236" />
   </head>
   <body aria-busy="true">
     <p id="appLoading" role="status">Завантаження редактора…</p>
@@ -235,10 +235,11 @@
           </div>
 
           <div class="view-container" id="floorView" data-view-panel="floor">
-            <div class="document-toolbar floor-toolbar"><div><span class="eyebrow">Приміщення · точки · кабельні траси</span><h2>План приміщень</h2></div><div class="floor-summary" id="floorSummary"></div><div class="document-actions"><button class="button generation-button" type="button" id="generatePanelFromPlan">Перезібрати щит за планом</button><button class="button ghost floor-connect-command" type="button" id="floorConnectMode" aria-pressed="false">З’єднати</button><button class="button ghost" id="floorUndoButton" type="button"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 7-5 5 5 5M5 12h8a6 6 0 0 1 6 6"/></svg> <span class="button-label">Назад</span></button><button class="button ghost" id="floorRedoButton" type="button"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m15 7 5 5-5 5m4-5h-8a6 6 0 0 0-6 6"/></svg> <span class="button-label">Повторити</span></button><details class="floor-export-menu"><summary>Експорт</summary><div class="floor-export-options"><button class="button ghost" id="floorCsvButton" type="button">Кабелі CSV</button><button class="button ghost" id="floorSvgButton" type="button">План SVG</button><button class="button ghost" id="floorPrintButton" type="button">Друк / PDF</button></div></details></div></div>
+            <h2 class="floor-view-title">План приміщень</h2>
+            <div class="document-toolbar floor-toolbar"><div class="floor-main-tools"><div class="floor-edit-modes" role="group" aria-label="Режим редагування плану"><button type="button" id="floorPointsMode" aria-pressed="true">Електричні точки</button><button type="button" id="floorGeometryMode" aria-pressed="false">Стіни й кімнати</button><button type="button" id="floorCircuitsMode" aria-pressed="false">Кола</button><button type="button" id="floorToolsToggle" aria-expanded="false" aria-controls="floorToolsPanel">Параметри</button></div><div class="floor-zoom"><button type="button" id="floorPanMode" aria-pressed="false" title="Переміщення полотна перетягуванням">Рука</button><button type="button" id="floorZoomOut" aria-label="Зменшити план"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14"/></svg></button><output id="floorZoomValue">100%</output><button type="button" id="floorZoomIn" aria-label="Збільшити план"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg></button><button type="button" id="floorFitButton">Вмістити</button></div></div><div class="document-actions"><button class="button generation-button" type="button" id="generatePanelFromPlan">Перезібрати щит за планом</button><button class="button ghost floor-connect-command" type="button" id="floorConnectMode" aria-pressed="false">З’єднати</button><button class="button ghost" id="floorUndoButton" type="button"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 7-5 5 5 5M5 12h8a6 6 0 0 1 6 6"/></svg> <span class="button-label">Назад</span></button><button class="button ghost" id="floorRedoButton" type="button"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m15 7 5 5-5 5m4-5h-8a6 6 0 0 0-6 6"/></svg> <span class="button-label">Повторити</span></button><details class="floor-export-menu"><summary>Експорт</summary><div class="floor-export-options"><button class="button ghost" id="floorCsvButton" type="button">Кабелі CSV</button><button class="button ghost" id="floorSvgButton" type="button">План SVG</button><button class="button ghost" id="floorPrintButton" type="button">Друк / PDF</button></div></details></div></div>
             <div class="floor-workspace">
 
-              <div class="floor-stage"><div class="floor-canvas-card"><div class="floor-main-tools"><div class="floor-edit-modes" role="group" aria-label="Режим редагування плану"><button type="button" id="floorPointsMode" aria-pressed="true">Електричні точки</button><button type="button" id="floorGeometryMode" aria-pressed="false">Стіни й кімнати</button><button type="button" id="floorCircuitsMode" aria-pressed="false">Кола</button><button type="button" id="floorToolsToggle" aria-expanded="false" aria-controls="floorToolsPanel">Параметри</button></div><div class="floor-zoom"><button type="button" id="floorPanMode" aria-pressed="false" title="Переміщення полотна перетягуванням">Рука</button><button type="button" id="floorZoomOut" aria-label="Зменшити план"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14"/></svg></button><output id="floorZoomValue">100%</output><button type="button" id="floorZoomIn" aria-label="Збільшити план"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg></button><button type="button" id="floorFitButton">Вмістити</button></div></div>
+              <div class="floor-stage"><div class="floor-canvas-card">
 
 
 <div id="floorCanvas" tabindex="0" aria-label="Полотно плану приміщень"></div><div class="floor-navigation-help"><span>Ctrl + коліщатко — масштаб · середня кнопка або «Рука» — переміщення · стрілки — зсув · Ctrl+Z — скасувати</span><a href="#floorCableReport">Кабелі ↓</a><a href="#floorPointSchedule">Точки ↓</a></div></div><div class="floor-warnings" id="floorWarnings"></div><section class="floor-report" id="floorCableReport"></section><section class="floor-report" id="floorPointSchedule"></section></div>
@@ -271,7 +272,7 @@
                   <div id="floorVertexProperties" class="floor-fields hidden"><label class="field"><span>X кута на плані, м</span><input type="number" step="0.05" id="floorVertexX"/></label><label class="field"><span>Y кута на плані, м</span><input type="number" step="0.05" id="floorVertexY"/></label><button type="button" class="button ghost full" id="floorApplyVertex">Застосувати кут</button></div>
                   <p class="floor-help">Видалення кімнати прибирає її точки з плану. Щиток переноситься в іншу кімнату для уточнення місця. Усе можна повернути кнопкою «Назад» або Ctrl+Z.</p><p id="floorGeometryLive" class="floor-geometry-live" role="status"></p>
                 </section>
-                <details id="floorTemplateEditor"><summary>Типовий план і параметри</summary><label class="field"><span>Початкова геометрія</span><select id="floorTemplateInput"></select></label><button class="button ghost full-width" id="floorGenerateButton" type="button">Перегенерувати типовий план</button><p class="floor-help">Це замінить поточний ескіз. «Скасувати» повертає попередній. Вихідні розміри та висоти — припущення для редагування.</p><div class="floor-fields">
+                <details id="floorTemplateEditor"><summary>Типовий план і параметри</summary><div class="floor-summary" id="floorSummary"></div><label class="field"><span>Початкова геометрія</span><select id="floorTemplateInput"></select></label><button class="button ghost full-width" id="floorGenerateButton" type="button">Перегенерувати типовий план</button><p class="floor-help">Це замінить поточний ескіз. «Скасувати» повертає попередній. Вихідні розміри та висоти — припущення для редагування.</p><div class="floor-fields">
                   <label class="field"><span>Стеля, м</span><input id="floorCeilingInput" type="number" min="1.8" max="8" step="0.05"/></label>
                   <label class="field full"><span>Спосіб прокладання всередині</span><select id="floorRoutingInput"><option value="ceiling">По стелі зі спусками</option><option value="floor">По підлозі з підйомами</option></select></label>
 </div><details class="floor-advanced"><summary>Додаткові параметри трас</summary><div class="floor-fields"><label class="field"><span>Стіни, м</span><input id="floorWallInput" type="number" min="0.05" max="0.8" step="0.01"/><small id="floorWallHelp" class="hidden">Товщину задають до побудови кімнат. У готовому контурі вона зафіксована.</small></label>                  <label class="field"><span>Запас, %</span><input id="floorReserveInput" type="number" min="0" max="50" step="1"/></label><label class="field"><span>На кінець, м</span><input id="floorAllowanceInput" type="number" min="0" max="2" step="0.05"/></label>
@@ -650,8 +651,8 @@
     <div class="toast-region" id="toastRegion" aria-live="polite"></div>
 
     <div class="modal-backdrop hidden" id="formDraftsModal"><section class="modal-card form-drafts-modal" role="dialog" aria-modal="true" aria-labelledby="formDraftsTitle"><button type="button" class="modal-close" data-close-modal aria-label="Закрити"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button><h2 id="formDraftsTitle">Незастосовані зміни</h2><p id="formDraftsStorage"></p><ul id="formDraftsList"></ul></section></div>
-<script defer src="language-data.js?v=235"></script>
-    <script defer src="language.js?v=235"></script>
-    <script defer src="boot.js?v=235"></script>
+<script defer src="language-data.js?v=236"></script>
+    <script defer src="language.js?v=236"></script>
+    <script defer src="boot.js?v=236"></script>
   </body>
 </html>
