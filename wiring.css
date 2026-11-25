@@ -103,12 +103,11 @@
 .wire-path:hover .wire-halo { stroke: #c9e4a0; stroke-width: 9; }
 .wire-label, .comb-label { fill: #33433a; font-family: inherit; font-size: 8px; font-weight: 750; stroke: #f6f9f2; stroke-width: 3px; paint-order: stroke; stroke-linejoin: round; pointer-events: none; }
 .comb-label { font-size: 7px; }
-.comb-catalog-preview::before { display: none; }
-.comb-catalog-preview svg { width: 100%; height: 100%; }
 .comb-choice-heading { display: flex; align-items: center; gap: 10px; }
 .comb-choice-heading strong { font-size: 12px; }
 .comb-choice-heading output { color: var(--muted); font-size: 11px; }
 .comb-choice-heading button { margin-left: auto; font-size: 11px; min-height: 32px; }
+.comb-choice-note { margin: 0; }
 .comb-terminal-choices { max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 7px; }
 .comb-terminal-choice { display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-bottom: 1px solid var(--line); cursor: pointer; }
 .comb-terminal-choice:last-child { border-bottom: 0; }

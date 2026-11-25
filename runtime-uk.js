@@ -3435,6 +3435,7 @@ function initCableReports() {
 /* wiring.js */
 /* Browser UI for the shared Electrical model. */
 const E = Electrical;
+const COMB_LANE_OFFSETS = { N: 20, L1: 34, L2: 48, L3: 62 };
 let wiringMode = false;
 let selectedWireId = null;
 let selectedBusbarId = null;
@@ -3732,7 +3733,7 @@ function paintWiring() {
     if (!visiblePotential(comb.potential)) return;
     const points = comb.terminals.map((ref) => geometry.get(E.endpointKey(ref))).filter(Boolean).sort((a, b) => a.x - b.x);
     if (points.length < 2) return;
-    const dir = points[0].port.side === "bottom" ? 1 : -1, y = points[0].y + dir * ({ N: 20, L1: 34, L2: 48, L3: 62 }[comb.potential] || 34);
+    const dir = points[0].port.side === "bottom" ? 1 : -1, y = points[0].y + dir * (COMB_LANE_OFFSETS[comb.potential] ?? COMB_LANE_OFFSETS.L1);
     const d = `M${points[0].x},${y} H${points[points.length - 1].x} ${points.map((point) => `M${point.x},${y} V${point.y}`).join(" ")}`;
     const related = focus?.combIds.has(comb.id);
     combMarkup.push(`<g class="comb-path ${comb.id === selectedCombId ? "selected" : ""} ${related ? "related" : ""} ${focus?.hasConnections && !related ? "dimmed" : ""}" data-comb-id="${escapeHtml(comb.id)}" role="button" tabindex="0" aria-label="Гребінка ${escapeHtml(comb.label)}"><path d="${d}" class="wire-halo"/><path d="${d}" stroke="#c59440" stroke-width="6" fill="none"/><path d="M${points[0].x - 6},${y} H${points[points.length - 1].x + 6}" stroke="${E.COLORS[E.DEFAULT_COLORS[comb.potential]].hex}" stroke-width="10" stroke-linecap="round"/><text x="${points[0].x}" y="${y + dir * 12}" class="comb-label">${escapeHtml(comb.label)} · ${comb.potential}</text><path class="wire-hit" d="${d}"/></g>`);
@@ -4228,64 +4229,100 @@ function initWiring() {
 /* comb-ui.js */
 /* Terminal-based comb accessories. Electrical.saveComb owns validation. */
 let combEditingId = null;
-let combChoice = new Set();
+let combChoice = new Map();
 
-function combCatalogMarkup(component) {
-  const color = E.COLORS[E.DEFAULT_COLORS[component.potential]].hex;
-  return `<article class="component-card" data-comb-preset="${component.potential}" title="Додати гребінку до апаратів"><div class="component-preview comb-catalog-preview"><svg viewBox="0 0 44 52" aria-hidden="true"><path d="M6 17V36M14 17V36M22 17V36M30 17V36M38 17V36" stroke="#ca9b46" stroke-width="4"/><rect x="2" y="10" width="40" height="13" rx="2" fill="${color}" stroke="#49545d"/><path d="M5 13H39" stroke="#ffffff80"/><text x="22" y="20" text-anchor="middle" fill="white" stroke="none" font-size="7">${component.potential === "N" ? "N" : "L"}</text></svg></div><div class="component-copy"><strong>${component.name}</strong><span>${component.detail}</span><small class="component-dimensions">Не займає модулів на рейці</small></div><button class="add-component" type="button" data-add-comb="${component.potential}" aria-label="Додати ${component.name}"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></article>`;
+function combRange() {
+  const start = $("#combStartInput").valueAsNumber, end = $("#combEndInput").valueAsNumber;
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start || end > project.board.modulesPerRow) return null;
+  return { start: start - 1, end: end - 1 };
 }
 
-function combOptions() {
-  return { row: Number($("#combRowInput").value), potential: $("#combPotentialInput").value, side: $("#combSideInput").value, excludeId: combEditingId || "" };
+function combRangePorts(range = combRange()) {
+  if (!range) return [];
+  const options = {
+    row: Number($("#combRowInput").value),
+    potential: $("#combPotentialInput").value,
+    side: $("#combSideInput").value,
+    excludeId: combEditingId || "",
+  };
+  return E.combCandidates(project, options).filter(({ device }) => device.slot >= range.start && device.slot <= range.end);
 }
+
 function combFormInput(terminals) {
   return { id: combEditingId || undefined, label: $("#combLabelInput").value.trim(), potential: $("#combPotentialInput").value, terminals, ratedCurrent: $("#combCurrentInput").value, contactType: $("#combContactInput").value, series: $("#combSeriesInput").value };
 }
-function combSelection() {
-  return E.combCandidates(project, combOptions()).filter((port) => !port.occupied && combChoice.has(E.endpointKey(port))).map(E.refOf);
+
+function combPortChecked(port) {
+  return !port.occupied && (combChoice.get(E.endpointKey(port)) ?? !combEditingId);
 }
+
+function updateCombChoiceStatus(ports = combRangePorts()) {
+  const available = ports.filter((port) => !port.occupied);
+  const selectedCount = available.filter(combPortChecked).length;
+  $("#combChoiceCount").textContent = `${selectedCount} / ${available.length}`;
+  $("#applyCombButton").disabled = selectedCount < 2;
+  $("#combSelectGroup").disabled = available.filter((port) => combChoice.get(E.endpointKey(port)) !== false).length < 2;
+  $("#combError").textContent = combRange() ? "" : "Перевірте діапазон модулів гребінки.";
+}
+
 function renderCombChoices() {
-  const ports = E.combCandidates(project, combOptions());
-  const available = new Set(ports.filter((port) => !port.occupied).map(E.endpointKey));
-  combChoice = new Set([...combChoice].filter((key) => available.has(key)));
-  $("#combTerminalChoices").innerHTML = ports.map((port) => `<label class="comb-terminal-choice ${port.occupied ? "unavailable" : ""}"><input type="checkbox" data-comb-key="${escapeHtml(E.endpointKey(port))}" ${combChoice.has(E.endpointKey(port)) ? "checked" : ""} ${port.occupied ? "disabled" : ""}/><span><strong>${escapeHtml(port.ownerLabel)} · ${escapeHtml(port.label)} · ${port.potential}</strong><small>${escapeHtml(port.device.name)}${port.occupied ? " · клема зайнята гребінкою" : ""}</small></span></label>`).join("") || '<p class="model-note">На цій рейці немає відповідних клем. Змініть провідник або сторону.</p>';
-  $("#combChoiceCount").textContent = `${combChoice.size} / ${available.size}`;
-  $("#applyCombButton").disabled = combChoice.size < 2;
-  $("#combSelectGroup").disabled = available.size < 2;
-  $("#combError").textContent = "";
+  const range = combRange(), ports = combRangePorts(range);
+  $("#combTerminalChoices").innerHTML = ports.map((port) => `
+    <label class="comb-terminal-choice ${port.occupied ? "unavailable" : ""}">
+      <input type="checkbox" data-comb-key="${escapeHtml(E.endpointKey(port))}" ${combPortChecked(port) ? "checked" : ""} ${port.occupied ? "disabled" : ""}/>
+      <span><strong>${escapeHtml(port.ownerLabel)} · ${escapeHtml(port.label)} · ${port.potential}</strong>
+      <small>${escapeHtml(port.device.name)}${port.occupied ? " · клема зайнята гребінкою" : ""}</small></span>
+    </label>`).join("") || (range ? '<p class="model-note">У цьому діапазоні немає відповідних клем.</p>' : "");
+  updateCombChoiceStatus(ports);
 }
-function openCombModal(options = {}) {
-  const existing = project.combs.find((comb) => comb.id === options.id), first = existing?.terminals[0];
+
+function openCombModal(id) {
+  const existing = project.combs.find((comb) => comb.id === id), first = existing?.terminals[0];
   const selected = project.devices.find((device) => device.id === (first?.ownerId || selectedDeviceId));
   combEditingId = existing?.id || null;
-  combChoice = new Set(existing?.terminals.map(E.endpointKey) || []);
+  combChoice = new Map((existing?.terminals || []).map((ref) => [E.endpointKey(ref), true]));
   $("#combModalTitle").textContent = existing ? "Редагувати гребінку" : "Додати гребінку";
   $("#applyCombButton").textContent = existing ? "Зберегти зміни" : "Додати гребінку";
   $("#combLabelInput").value = existing?.label || E.nextLabel(project.combs, "BB");
   $("#combRowInput").innerHTML = Array.from({ length: project.board.rows }, (_, row) => `<option value="${row}">DIN ${row + 1}</option>`).join("");
   $("#combRowInput").value = selected?.row || 0;
-  $("#combPotentialInput").value = existing?.potential || options.potential || (E.PHASES.includes(selected?.phase) ? selected.phase : "L1");
+  const moduleCount = project.board.modulesPerRow;
+  $("#combStartInput").max = $("#combEndInput").max = moduleCount;
+  $("#combStartInput").value = 1;
+  $("#combEndInput").value = moduleCount;
+  $("#combPotentialInput").value = existing?.potential || (E.PHASES.includes(selected?.phase) ? selected.phase : "L1");
   $("#combSideInput").value = first ? E.resolveEndpoint(project, first)?.side || "top" : "top";
   $("#combCurrentInput").value = existing?.ratedCurrent || "";
   $("#combContactInput").value = existing?.contactType || "";
   $("#combSeriesInput").value = existing?.series || "";
-  $("#combReplaceJumpers").checked = !existing;
-  if (!existing && selected) E.combCandidates(project, combOptions()).filter((port) => port.ownerId === selected.id).forEach((port) => combChoice.add(E.endpointKey(port)));
-  renderCombChoices(); openModal("#combModal");
+  $("#combReplaceJumpers").checked = false;
+  $("#combDetails").open = false;
+  renderCombChoices();
+  openModal("#combModal");
 }
+
 function selectCombGroup() {
-  const ports = E.combCandidates(project, combOptions()).filter((port) => !port.occupied);
-  const first = ports.find((port) => combChoice.has(E.endpointKey(port))) || ports.find((port) => /^(mcb-|rcbo|rccb-)/.test(port.device.type));
-  if (!first) return;
+  const ports = combRangePorts().filter((port) => !port.occupied && combChoice.get(E.endpointKey(port)) !== false);
+  const first = ports.find((port) => port.ownerId === selectedDeviceId)
+    || ports.find((port) => combChoice.get(E.endpointKey(port)) === true)
+    || ports.find((port) => /^(mcb-|rcbo|rccb-)/.test(port.device.type))
+    || ports[0];
+  if (!first || ports.length < 2) return;
   const chosen = [E.refOf(first)];
-  ports.filter((port) => /^(mcb-|rcbo|rccb-)/.test(port.device.type) && !E.sameEndpoint(port, first)).forEach((port) => {
+  ports.filter((port) => !E.sameEndpoint(port, first)).forEach((port) => {
     try { E.saveComb(project, combFormInput([...chosen, E.refOf(port)])); chosen.push(E.refOf(port)); } catch { /* Another protected group remains unchecked. */ }
   });
-  combChoice = new Set(chosen.map(E.endpointKey)); renderCombChoices();
+  const chosenKeys = new Set(chosen.map(E.endpointKey));
+  ports.forEach((port) => { const key = E.endpointKey(port); combChoice.set(key, chosenKeys.has(key)); });
+  renderCombChoices();
 }
+
 function applyComb() {
+  const range = combRange();
+  if (!range) return;
+  const terminals = combRangePorts(range).filter(combPortChecked).map(E.refOf);
   try {
-    const result = E.saveComb(project, combFormInput(combSelection()), { replaceJumpers: $("#combReplaceJumpers").checked });
+    const result = E.saveComb(project, combFormInput(terminals), { replaceJumpers: $("#combReplaceJumpers").checked });
     snapshot(); project = result.project; persistProject();
     $("#combModal").classList.add("hidden"); selectedCombId = result.combId;
     selectedWireId = selectedBusbarId = selectedDeviceId = null;
@@ -4293,13 +4330,14 @@ function applyComb() {
   } catch (error) { $("#combError").textContent = error.message; }
 }
 function initializeCombEditor() {
-  $("#deviceCombButton").addEventListener("click", () => openCombModal());
-  $("#editCombButton").addEventListener("click", () => openCombModal({ id: selectedCombId }));
-  ["combRowInput", "combPotentialInput", "combSideInput"].forEach((id) => $(`#${id}`).addEventListener("change", renderCombChoices));
+  $("#editCombButton").addEventListener("click", () => openCombModal(selectedCombId));
+  ["#combRowInput", "#combPotentialInput", "#combSideInput"].forEach((selector) => $(selector).addEventListener("change", renderCombChoices));
+  ["#combStartInput", "#combEndInput"].forEach((selector) => $(selector).addEventListener("input", renderCombChoices));
   $("#combTerminalChoices").addEventListener("change", (event) => {
-    const key = event.target.dataset.combKey; if (!key) return;
-    if (event.target.checked) combChoice.add(key); else combChoice.delete(key);
-    renderCombChoices();
+    const key = event.target.dataset.combKey;
+    if (!key) return;
+    combChoice.set(key, event.target.checked);
+    updateCombChoiceStatus();
   });
   $("#combSelectGroup").addEventListener("click", selectCombGroup);
 }
@@ -4977,9 +5015,30 @@ function readMechanicalBoard(base) {
   return next;
 }
 
+function combVerticalBounds(scene, scale) {
+  let top = Infinity, bottom = -Infinity;
+  for (const comb of scene.combs) {
+    // Allow space for the legend beyond the center line of the colored bar.
+    const clearance = ((COMB_LANE_OFFSETS[comb.potential] ?? COMB_LANE_OFFSETS.L1) + 22) / scale;
+    for (const ref of comb.terminals) {
+      const device = scene.devices.find((item) => item.id === ref.ownerId);
+      const port = device && E.resolveEndpoint(scene, ref);
+      if (port?.side !== "top" && port?.side !== "bottom") continue;
+      const bounds = M.deviceRect(device, scene.board);
+      if (port.side === "top") top = Math.min(top, bounds.y - clearance);
+      else bottom = Math.max(bottom, bounds.y + bounds.height + clearance);
+    }
+  }
+  return { top, bottom };
+}
+
 function renderMechanicalBoard() {
   const physical = true; // Both views use the same metric DIN grid and widths.
-  const viewport = M.assemblyViewport(PanelDeviceVisuals.scene(project, uniformDeviceHeight)), frame = $("#boardAssemblyViewport");
+  const scene = PanelDeviceVisuals.scene(project, uniformDeviceHeight), scale = mmScale();
+  const viewport = M.assemblyViewport(scene), frame = $("#boardAssemblyViewport");
+  const combBounds = combVerticalBounds(scene, scale);
+  const top = Math.min(viewport.topMm, combBounds.top);
+  const bottom = Math.max(viewport.topMm + viewport.heightMm, combBounds.bottom);
   const shell = $("#boardShell"), surface = $("#wiringSurface");
   shell.classList.add("assembly-board");
   shell.classList.toggle("physical-board", physical);
@@ -4991,12 +5050,12 @@ function renderMechanicalBoard() {
   $("#boardGeometryCaption").textContent = "";
   frame.classList.remove("trimmed-assembly");
   frame.style.width = physical ? `${viewport.widthMm * mmScale()}px` : "";
-  frame.style.height = physical ? `${viewport.heightMm * mmScale()}px` : "";
+  frame.style.height = physical ? `${(bottom - top) * scale}px` : "";
   surface.style.width = physical ? `${viewport.surfaceWidthMm * mmScale()}px` : "";
-  surface.style.height = physical ? `${viewport.surfaceHeightMm * mmScale()}px` : "";
+  surface.style.height = physical ? `${Math.max(viewport.surfaceHeightMm, bottom) * scale}px` : "";
   surface.style.left = physical ? `${-viewport.leftMm * mmScale()}px` : "";
-  surface.style.top = physical ? `${-viewport.topMm * mmScale()}px` : "";
-  surface.style.clipPath = physical ? `inset(${viewport.topMm * mmScale()}px -10000px -10000px ${viewport.leftMm * mmScale()}px)` : "";
+  surface.style.top = physical ? `${-top * scale}px` : "";
+  surface.style.clipPath = physical ? `inset(${top * scale}px -10000px -10000px ${viewport.leftMm * scale}px)` : "";
   surface.dataset.routeInsetX = physical ? viewport.leftMm * mmScale() : 0;
   shell.style.setProperty("--mm-scale", mmScale());
   shell.style.setProperty("--rail-mm-height", `${100 * mmScale()}px`);
@@ -6671,9 +6730,9 @@ function initFloorPencil() {
     zoomOutButton: "Зменшити масштаб компоновки для загального огляду.",
     librarySearch: "Знайти апарат у бібліотеці за назвою або типом. / переводить курсор у пошук.",
     openTemplatesButton: "Обрати готову компоновку для квартири або будинку з початковими колами й проводкою.",
-    deviceCombButton: "Додати фазну або нульову гребінку. Цей апарат буде вибраний у переліку клем.",
+    addCombButton: "Додати фазну або нульову гребінку до вибраних клем у діапазоні модулів.",
     editCombButton: "Змінити клеми, провідник, тип контакту та паспортні дані гребінки.",
-    combSelectGroup: "Обрати клеми однієї електричної групи на цій рейці. Почніть із потрібного апарата.",
+    combSelectGroup: "Обрати клеми однієї групи живлення в межах діапазону. Пропущені апарати залишаться поза групою.",
     combReplaceJumpers: "Прибрати дубльовані перемички між вибраними клемами, зберігши спільне живлення.",
     floorPointsMode: "Розміщувати й пересувати розетки, світильники, вимикачі, техніку та щиток; призначати кола й висоти.",
     floorGeometryMode: "Редагувати стіни, кути й кімнати; малювати власний контур, додавати двері та вікна.",
@@ -6939,11 +6998,6 @@ const COMPONENTS = [
   ...ControlDevices.COMPONENTS,
 ];
 
-const COMB_ACCESSORIES = [
-  { accessory: true, name: "Фазна гребінка", detail: "L1 / L2 / L3 · до клем апаратів", category: "Монтаж", potential: "L1" },
-  { accessory: true, name: "Нульова гребінка", detail: "N · до нейтральних клем апаратів", category: "Монтаж", potential: "N" },
-];
-
 const CATEGORY_LABELS = ["Усі", "Захист", "Дифзахист", "Керування", "Облік", "Монтаж"];
 const PHASE_COLORS = { L1: "#80502c", L2: "#24282c", L3: "#8b9299", "3P": "#55636d", N: "#1976df", PE: "#24864b" };
 
@@ -7130,14 +7184,14 @@ function renderProjectChrome() {
 
 function renderLibrary() {
   const query = $("#librarySearch").value.trim().toLocaleLowerCase("uk");
-  const filtered = [...COMPONENTS, ...COMB_ACCESSORIES].filter((component) => {
+  const filtered = COMPONENTS.filter((component) => {
     const categoryMatch = activeCategory === "Усі" || component.category === activeCategory;
     const searchMatch = !query || `${component.name} ${component.detail} ${component.category}`.toLocaleLowerCase("uk").includes(query);
     return categoryMatch && searchMatch;
   });
   $("#libraryCount").textContent = filtered.length;
   $("#categoryTabs").innerHTML = CATEGORY_LABELS.map((category) => `<button class="category-tab ${category === activeCategory ? "active" : ""}" type="button" data-category="${category}">${category}</button>`).join("");
-  $("#componentList").innerHTML = filtered.length ? filtered.map((component) => component.accessory ? combCatalogMarkup(component) : `
+  $("#componentList").innerHTML = filtered.length ? filtered.map((component) => `
     <article class="component-card" draggable="true" data-component-type="${component.type}" title="Перетягніть на DIN-рейку">
       <div class="component-preview type-${component.face} ${component.photo ? "has-photo" : ""}" style="--component-accent:${component.accent};--photo-scale:${component.photoScale || 1}">${component.photo ? componentArtworkMarkup(component) : ""}</div>
       <div class="component-copy"><strong>${component.name}</strong><span>${component.detail} · ${getComponent(component.type).modules} місць</span><small class="component-dimensions">${mmText(M.dimensions({ type: component.type, geometryId: M.defaultProfile(component.type) }))}${M.defaultProfile(component.type) ? " · каталог" : " · орієнтовно"}</small></div>
@@ -7146,8 +7200,6 @@ function renderLibrary() {
 
   $$("[data-category]").forEach((button) => button.addEventListener("click", () => { activeCategory = button.dataset.category; renderLibrary(); }));
   $$("[data-add-component]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); addComponent(button.dataset.addComponent); }));
-  $$("[data-add-comb]").forEach((button) => button.addEventListener("click", () => openCombModal({ potential: button.dataset.addComb })));
-  $$("[data-comb-preset]").forEach((card) => card.addEventListener("dblclick", () => openCombModal({ potential: card.dataset.combPreset })));
   $$(".component-card[data-component-type]").forEach((card) => {
     card.addEventListener("dragstart", (event) => {
       draggedDeviceId = null; draggedComponentType = card.dataset.componentType;
@@ -7422,7 +7474,6 @@ function renderInspector() {
   const device = project.devices.find((item) => item.id === selectedDeviceId);
   $("#deviceInspector").classList.toggle("hidden", !device);
   $("#replaceAfddButton").classList.toggle("hidden", device?.type !== "rcbo-afdd");
-  $("#deviceCombButton").classList.toggle("hidden", !device || !E.deviceTerminals(device).some((port) => ["top", "bottom"].includes(port.side) && [...E.PHASES, "N"].includes(port.potential)));
   const consumer = device && E.consumerForDevice(project, device.id), consumerButton = $("#addConsumerButton");
   consumerButton.classList.toggle("hidden", !E.canAddConsumer(device));
   consumerButton.disabled = Boolean(consumer);
