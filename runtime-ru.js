@@ -2005,6 +2005,8 @@
       comb.id ||= id(); comb.label = String(comb.label || "Гребёнка"); comb.terminals ||= [];
       if (!Array.isArray(comb.terminals) || comb.terminals.some((ref) => !validRef(ref)) || ![...PHASES, "N"].includes(comb.potential)) throw new Error("Некорректные контакты гребенки");
       comb.ratedCurrent = positiveOrNull(comb.ratedCurrent);
+      if (comb.contactType != null && !["", "pin", "fork"].includes(comb.contactType)) throw new Error("Неизвестный тип контакта гребёнки.");
+      if (comb.series != null) comb.series = String(comb.series).trim().slice(0, 120);
     });
     const entityIds = [...project.devices, ...project.busbars, ...project.wires, ...project.combs, ...project.consumers].map((entity) => entity.id);
     if (new Set(entityIds).size !== entityIds.length) throw new Error("Повторенные идентификаторы в проекте");
@@ -2117,6 +2119,44 @@
   const refOf = (port) => ({ kind: port.kind, ownerId: port.ownerId, portId: port.portId });
   const endpointLabel = (project, ref) => { const port = resolveEndpoint(project, ref); return port ? `${port.ownerLabel}:${port.label}` : "Отсутствует клемма"; };
   const busbarModules = (bar, board) => M.barModules(bar, board);
+
+  function combCandidates(project, { row = 0, potential = "L1", side = "top", excludeId = "" } = {}) {
+    const occupied = new Set((project.combs || []).filter((comb) => comb.id !== excludeId).flatMap((comb) => comb.terminals.map(endpointKey)));
+    return allEndpoints(project).filter((port) => port.kind === "device" && port.potential === potential && port.side === side)
+      .map((port) => ({ ...port, device: project.devices.find((device) => device.id === port.ownerId), occupied: occupied.has(endpointKey(port)) }))
+      .filter((port) => port.device.row === Number(row)).sort((a, b) => a.device.slot - b.device.slot || a.x - b.x);
+  }
+
+  // Combs use the existing terminal graph, so reports, protection checks and
+  // schematics see an electrical connection rather than decorative artwork.
+  function saveComb(project, input, { replaceJumpers = false } = {}) {
+    const next = normalizeProject(project), previous = next.combs.find((comb) => comb.id === input.id);
+    const current = input.ratedCurrent;
+    if (current != null && current !== "" && (!Number.isFinite(Number(current)) || Number(current) <= 0 || Number(current) > 1000)) throw new Error("Укажите корректный номинальный ток гребёнки.");
+    const comb = { ...previous, id: input.id || id(), label: String(input.label || nextLabel(next.combs, "BB")).trim().slice(0, 80), potential: input.potential, terminals: clone(input.terminals || []), ratedCurrent: positiveOrNull(current), contactType: input.contactType || "", series: String(input.series || "").trim().slice(0, 120) };
+    if (![...PHASES, "N"].includes(comb.potential)) throw new Error("Выберите фазу L1, L2, L3 или нейтраль N.");
+    const originalFeeds = connectivity(next, { isolateProtection: true });
+    next.combs = next.combs.filter((item) => item.id !== comb.id).concat(comb);
+    const check = () => validate(next).find((issue) => issue.level === "error" && (issue.entityId === comb.id || issue.code === "neutral-mix"));
+    // Never mask a dangerous bridge by removing one of its feeders afterwards.
+    const before = check(); if (before) throw new Error(before.text);
+    const members = new Set(comb.terminals.map(endpointKey)), feedPairs = new Set(), removedWireIds = [];
+    if (replaceJumpers) next.wires = next.wires.filter((wire) => {
+      if (wire.potential !== comb.potential) return true;
+      const from = members.has(endpointKey(wire.from)), to = members.has(endpointKey(wire.to));
+      let redundant = from && to;
+      if (from !== to) {
+        const external = originalFeeds.find(from ? wire.to : wire.from);
+        redundant = feedPairs.has(external); feedPairs.add(external);
+      }
+      if (redundant) removedWireIds.push(wire.id);
+      return !redundant;
+    });
+    const problem = check();
+    if (problem) throw new Error(problem.text);
+    if (next.design) { next.design.approval = null; if (next.design.supply) next.design.supply.dataConfirmed = false; }
+    return { project: normalizeProject(next), combId: comb.id, removedWireIds };
+  }
 
   function compatible(project, a, b, potential) {
     if (!a || !b || sameEndpoint(a, b)) return false;
@@ -2297,11 +2337,22 @@
       });
     });
     const combPorts = new Set();
+    const combGraph = project.combs.length ? connectivity(project, { isolateProtection: true }) : null;
+    const combSources = new Map();
+    if (combGraph) project.devices.filter((device) => /^(main-|mcb-|rccb-|rcbo)/.test(device.type)).forEach((device) => {
+      deviceTerminals(device).forEach((port) => {
+        if (port.side !== "bottom" && !(device.type.startsWith("main-") && port.side === "top")) return;
+        const ref = { kind: "device", ownerId: device.id, portId: port.portId }, key = combGraph.find(ref);
+        if (!combSources.has(key)) combSources.set(key, new Set());
+        combSources.get(key).add(`${device.id}:${port.portId}`);
+      });
+    });
     project.combs.forEach((comb) => {
       const members = comb.terminals.map((ref) => resolveEndpoint(project, ref));
       if (members.length < 2 || members.some((port) => !port || port.kind !== "device")) { add("comb-members", `${comb.label}: требуется по меньшей мере две существующие клеммы аппаратов.`, comb.id); return; }
       const firstDevice = project.devices.find((device) => device.id === members[0].ownerId);
-      if (new Set(members.map(endpointKey)).size !== members.length || members.some((port) => port.potential !== comb.potential || port.side !== members[0].side || project.devices.find((device) => device.id === port.ownerId).row !== firstDevice.row)) add("comb-potential", `${comb.label}: гребенка должна соединять одноименные клеммы на одной стороне одного рельса.`, comb.id);
+      if (new Set(members.map(endpointKey)).size !== members.length || !["top", "bottom"].includes(members[0].side) || members.some((port) => port.potential !== comb.potential || port.side !== members[0].side || project.devices.find((device) => device.id === port.ownerId).row !== firstDevice.row)) add("comb-potential", `${comb.label}: гребенка должна соединять одноименные клеммы на одной стороне одного рельса.`, comb.id);
+      if ((combSources.get(combGraph.find(members[0]))?.size || 0) > 1) add("comb-sources", `${comb.label}: гребёнка объединяет выходы разных защитных аппаратов или обходит защиту. Выберите аппараты одной группы питания.`, comb.id);
       members.forEach((port) => { const key = endpointKey(port); if (combPorts.has(key)) add("comb-overlap", `${comb.label}: клемма уже занята другой гребенкой.`, comb.id); combPorts.add(key); });
     });
     project.busbars.forEach((bar) => {
@@ -2373,7 +2424,7 @@
     return `\ufeff${rows.map((row) => row.map((cell) => `"${safeCell(cell).replaceAll('"', '""')}"`).join(";")).join("\r\n")}`;
   }
 
-  return { control: C, COLORS, DEFAULT_COLORS, PHASES, id, isRcd, normalizeProject, replaceAfdd, consumerTerminals, consumerForDevice, canAddConsumer, addConsumer, renameConsumer, deviceTerminals, allEndpoints, resolveEndpoint, refOf, endpointKey, endpointLabel, sameEndpoint, compatible, preferredPotential, makeWire, reconnectWire, deviceForWire, insertionPairs, insertDeviceInWire, nextLabel, busbarModules, validate, connectivity, neutralGroups, cloneProject, removeEntity, wireRows, csvContent, positiveOrNull };
+  return { control: C, COLORS, DEFAULT_COLORS, PHASES, id, isRcd, normalizeProject, replaceAfdd, consumerTerminals, consumerForDevice, canAddConsumer, addConsumer, renameConsumer, deviceTerminals, allEndpoints, resolveEndpoint, refOf, endpointKey, endpointLabel, sameEndpoint, compatible, preferredPotential, makeWire, reconnectWire, deviceForWire, insertionPairs, insertDeviceInWire, nextLabel, busbarModules, combCandidates, saveComb, validate, connectivity, neutralGroups, cloneProject, removeEntity, wireRows, csvContent, positiveOrNull };
 });
 
 ;
@@ -3643,6 +3694,8 @@ function selectedConnections() {
     focus.combIds.add(comb.id);
     comb.terminals.forEach(include);
   });
+  const combPorts = new Set(project.combs.filter((comb) => focus.combIds.has(comb.id)).flatMap((comb) => comb.terminals.map(E.endpointKey)));
+  project.wires.filter((wire) => [wire.from, wire.to].some((ref) => combPorts.has(E.endpointKey(ref)))).forEach((wire) => { focus.wireIds.add(wire.id); [wire.from, wire.to].forEach(include); });
   focus.hasConnections = Boolean(focus.wireIds.size || focus.combIds.size);
   return focus;
 }
@@ -3674,14 +3727,15 @@ function paintWiring() {
   svg.setAttribute("viewBox", `0 0 ${surface.clientWidth} ${surface.clientHeight}`);
   const markup = [`<defs><pattern id="peWirePattern" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="10" height="10" fill="#21854d"/><rect width="4" height="10" fill="#f7df3c"/></pattern></defs>`];
   const routeHandles = [];
+  const combMarkup = [];
   project.combs.forEach((comb) => {
     if (!visiblePotential(comb.potential)) return;
     const points = comb.terminals.map((ref) => geometry.get(E.endpointKey(ref))).filter(Boolean).sort((a, b) => a.x - b.x);
     if (points.length < 2) return;
-    const dir = points[0].port.side === "bottom" ? 1 : -1, y = points[0].y + dir * 32;
+    const dir = points[0].port.side === "bottom" ? 1 : -1, y = points[0].y + dir * ({ N: 20, L1: 34, L2: 48, L3: 62 }[comb.potential] || 34);
     const d = `M${points[0].x},${y} H${points[points.length - 1].x} ${points.map((point) => `M${point.x},${y} V${point.y}`).join(" ")}`;
     const related = focus?.combIds.has(comb.id);
-    markup.push(`<g class="comb-path ${comb.id === selectedCombId ? "selected" : ""} ${related ? "related" : ""} ${focus?.hasConnections && !related ? "dimmed" : ""}" data-comb-id="${escapeHtml(comb.id)}" role="button" tabindex="0" aria-label="Гребёнка ${escapeHtml(comb.label)}"><path d="${d}" class="wire-halo"/><path d="${d}" stroke="#c59440" stroke-width="6" fill="none"/><path d="M${points[0].x - 6},${y} H${points[points.length - 1].x + 6}" stroke="${comb.potential === "N" ? "#1976df" : "#343b40"}" stroke-width="10" stroke-linecap="round"/><text x="${points[0].x}" y="${y + dir * 12}" class="comb-label">${escapeHtml(comb.label)}</text><path class="wire-hit" d="${d}"/></g>`);
+    combMarkup.push(`<g class="comb-path ${comb.id === selectedCombId ? "selected" : ""} ${related ? "related" : ""} ${focus?.hasConnections && !related ? "dimmed" : ""}" data-comb-id="${escapeHtml(comb.id)}" role="button" tabindex="0" aria-label="Гребёнка ${escapeHtml(comb.label)}"><path d="${d}" class="wire-halo"/><path d="${d}" stroke="#c59440" stroke-width="6" fill="none"/><path d="M${points[0].x - 6},${y} H${points[points.length - 1].x + 6}" stroke="${E.COLORS[E.DEFAULT_COLORS[comb.potential]].hex}" stroke-width="10" stroke-linecap="round"/><text x="${points[0].x}" y="${y + dir * 12}" class="comb-label">${escapeHtml(comb.label)} · ${comb.potential}</text><path class="wire-hit" d="${d}"/></g>`);
   });
   project.wires.forEach((wire, index) => {
     if (!visiblePotential(wire.potential, wire)) return;
@@ -3700,7 +3754,7 @@ function paintWiring() {
       handles.forEach((point, handleIndex) => routeHandles.push(`<rect class="route-handle" data-route-wire="${escapeHtml(wire.id)}" data-route-index="${handleIndex}" x="${point.x - 5}" y="${point.y - 5}" width="10" height="10" transform="rotate(45 ${point.x} ${point.y})" aria-label="Изменить маршрут ${escapeHtml(wire.label)}"/>`));
     }
   });
-  markup.push(...routeHandles);
+  markup.push(...combMarkup, ...routeHandles);
   geometry.forEach((point, key) => {
     const related = focus?.terminalKeys.has(key);
     if (!wiringMode && point.port.ownerId !== selectedDeviceId && point.port.ownerId !== selectedBusbarId && !related) return;
@@ -3891,7 +3945,7 @@ function renderWiringInspector() {
   }
   if (comb) {
     $("#combInspectorTitle").textContent = `${comb.label} · ${comb.potential}`;
-    $("#combMembers").innerHTML = `<strong>${comb.terminals.length} контактов · ${comb.ratedCurrent ? `${comb.ratedCurrent} А` : "номинал не задан"}</strong>${comb.terminals.map((ref) => `<div><span>${escapeHtml(E.endpointLabel(project, ref))}</span></div>`).join("")}`;
+    $("#combMembers").innerHTML = `<p class="model-note">${escapeHtml(comb.contactType?.toUpperCase() || "Не задано")}${comb.series ? ` · ${escapeHtml(comb.series)}` : ""}</p><strong>${comb.terminals.length} контактов · ${comb.ratedCurrent ? `${comb.ratedCurrent} А` : "номинал не задан"}</strong>${comb.terminals.map((ref) => `<div><span>${escapeHtml(E.endpointLabel(project, ref))}</span></div>`).join("")}`;
   }
   const rcd = project.devices.find((device) => device.id === selectedDeviceId && E.isRcd(device));
   $("#addRcdNeutralButton").classList.toggle("hidden", !rcd);
@@ -3969,33 +4023,6 @@ function deleteWiringEntity(kind, entityId) {
   toast("Элемент и связанные соединения удалены. Ctrl+Z – вернуть.");
 }
 
-function openCombModal() {
-  $("#combLabelInput").value = E.nextLabel(project.combs, "BB");
-  $("#combRowInput").innerHTML = Array.from({ length: project.board.rows }, (_, row) => `<option value="${row}">DIN ${row + 1}</option>`).join("");
-  const selected = project.devices.find((device) => device.id === selectedDeviceId);
-  $("#combRowInput").value = selected?.row || 0;
-  $("#combEndInput").value = project.board.modulesPerRow;
-  $("#combStartInput").value = 1;
-  $("#combStartInput").max = $("#combEndInput").max = project.board.modulesPerRow;
-  $("#combPotentialInput").value = selected && E.PHASES.includes(selected.phase) ? selected.phase : "L1";
-  openModal("#combModal");
-}
-
-function applyComb() {
-  const row = Number($("#combRowInput").value), start = Number($("#combStartInput").value) - 1, end = Number($("#combEndInput").value) - 1;
-  const potential = $("#combPotentialInput").value, side = $("#combSideInput").value;
-  const terminals = E.allEndpoints(project).filter((port) => port.kind === "device" && port.potential === potential && port.side === side).filter((port) => { const device = project.devices.find((item) => item.id === port.ownerId); return device.row === row && device.slot >= start && device.slot <= end; }).map(E.refOf);
-  const comb = { id: uid(), label: $("#combLabelInput").value.trim() || E.nextLabel(project.combs, "BB"), potential, terminals, ratedCurrent: E.positiveOrNull($("#combCurrentInput").value) };
-  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start || end >= project.board.modulesPerRow) return toast("Проверьте диапазон модулей гребенки.", "error");
-  const candidate = { ...project, combs: [...project.combs, comb] };
-  const error = E.validate(candidate).find((issue) => issue.level === "error" && (issue.entityId === comb.id || issue.code === "neutral-mix"));
-  if (error) return toast(error.text, "error");
-  snapshot(); project.combs.push(comb); persistProject();
-  $("#combModal").classList.add("hidden");
-  selectedCombId = comb.id; selectedWireId = selectedBusbarId = selectedDeviceId = null;
-  renderAll(); toast(`${comb.label}: объединено ${terminals.length} клемм (${potential})`);
-}
-
 function wiringChecks() {
   const issues = E.validate(project);
   const byCode = new Map();
@@ -4013,14 +4040,14 @@ function renderWireReport() {
   $("#wireTableBody").innerHTML = rows.map((row) => `<tr><td><strong>${escapeHtml(row.label)}</strong></td><td>${escapeHtml(row.from)}</td><td>${escapeHtml(row.to)}</td><td>${row.potential}</td><td>${row.section}</td><td>${escapeHtml(row.color)} · ${row.material}</td><td>${escapeHtml(row.wireType || "Не задано")}</td><td>${row.lengthM == null ? "Не задано" : `${cableNumber(row.lengthM)} м`}</td><td>${row.route}</td></tr>`).join("");
   $("#wiresEmpty").classList.toggle("hidden", rows.length > 0);
   $(".wire-table").classList.toggle("hidden", rows.length === 0);
-  $("#combReport").innerHTML = project.combs.length ? `<div class="report-section-title">Ведомость гребенок</div><table class="bom-table"><thead><tr><th>Обозначение</th><th>Проводник</th><th>Контакты</th><th>Номинал</th></tr></thead><tbody>${project.combs.map((comb) => `<tr><td>${escapeHtml(comb.label)}</td><td>${comb.potential}</td><td>${comb.terminals.map((ref) => escapeHtml(E.endpointLabel(project, ref))).join(", ")}</td><td>${comb.ratedCurrent ? `${comb.ratedCurrent} А` : "Не задано"}</td></tr>`).join("")}</tbody></table>` : "";
+  $("#combReport").innerHTML = project.combs.length ? `<div class="report-section-title">Ведомость гребенок</div><table class="bom-table"><thead><tr><th>Обозначение</th><th>Проводник</th><th>Контакты</th><th>Серия / модель</th><th>Номинал</th></tr></thead><tbody>${project.combs.map((comb) => `<tr><td>${escapeHtml(comb.label)}</td><td>${comb.potential}</td><td>${comb.terminals.map((ref) => escapeHtml(E.endpointLabel(project, ref))).join(", ")}</td><td>${escapeHtml(comb.contactType?.toUpperCase() || "Не задано")}${comb.series ? ` · ${escapeHtml(comb.series)}` : ""}</td><td>${comb.ratedCurrent ? `${comb.ratedCurrent} А` : "Не задано"}</td></tr>`).join("")}</tbody></table>` : "";
   $("#combReport").classList.toggle("hidden", project.combs.length === 0);
 }
 
 function exportWireCsv() {
   const rows = [["Обозначение", "От", "До", "Проводник", "Сечение, мм²", "Цвет", "Материал", "Маршрут", "Тип/марка", "Длина, м"]];
   E.wireRows(project).forEach((row) => rows.push([row.label, row.from, row.to, row.potential, row.section, row.color, row.material, row.route, row.wireType, row.lengthM ?? ""]));
-  project.combs.forEach((comb) => rows.push([comb.label, "Гребёнка", comb.terminals.map((ref) => E.endpointLabel(project, ref)).join(" / "), comb.potential, "", "", "", `${comb.terminals.length} контактов`, "", ""]));
+  project.combs.forEach((comb) => rows.push([comb.label, "Гребёнка", comb.terminals.map((ref) => E.endpointLabel(project, ref)).join(" / "), comb.potential, "", "", "", `${comb.terminals.length} контактов${comb.contactType ? ` · ${comb.contactType.toUpperCase()}` : ""}${comb.series ? ` · ${comb.series}` : ""}`, "", ""]));
   downloadBlob(csvContent(rows), `${slugify(project.name)}-connections.csv`, "text/csv;charset=utf-8");
   toast("Веб-соединение CSV сохранено");
 }
@@ -4124,7 +4151,8 @@ function initWiring() {
   ["busbarLabelInput", "busbarCountInput", "busbarCurrentInput", "busbarZoneInput", "busbarRowInput", "busbarSlotInput", "busbarRcdInput", "busbarMinInput", "busbarMaxInput"].forEach((field) => $(`#${field}`).addEventListener("change", updateBusbar));
   $("#addRcdNeutralButton").addEventListener("click", () => { const device = project.devices.find((item) => item.id === selectedDeviceId && E.isRcd(item)); if (device) createBusbar("N", device.id); });
   $("#resetWireRouteButton").addEventListener("click", () => { const wire = project.wires.find((item) => item.id === selectedWireId); if (!wire?.points.length) return; snapshot(); wire.points = []; persistProject(); renderAll(); });
-  $("#addCombButton").addEventListener("click", openCombModal);
+  $("#addCombButton").addEventListener("click", () => openCombModal());
+  initializeCombEditor();
   $("#applyCombButton").addEventListener("click", applyComb);
   $("#wireCsvButton").addEventListener("click", exportWireCsv);
   $("#printWiresButton").addEventListener("click", () => window.print());
@@ -4194,6 +4222,86 @@ function initWiring() {
     if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable || $(".modal-backdrop:not(.hidden)")) return;
     if (event.key.toLowerCase() === "w" && !event.ctrlKey && !event.metaKey) { event.preventDefault(); switchView("board"); setWiringMode(!wiringMode); }
   });
+}
+
+;
+/* comb-ui.js */
+/* Terminal-based comb accessories. Electrical.saveComb owns validation. */
+let combEditingId = null;
+let combChoice = new Set();
+
+function combCatalogMarkup(component) {
+  const color = E.COLORS[E.DEFAULT_COLORS[component.potential]].hex;
+  return `<article class="component-card" data-comb-preset="${component.potential}" title="Добавить гребёнку к аппаратам"><div class="component-preview comb-catalog-preview"><svg viewBox="0 0 44 52" aria-hidden="true"><path d="M6 17V36M14 17V36M22 17V36M30 17V36M38 17V36" stroke="#ca9b46" stroke-width="4"/><rect x="2" y="10" width="40" height="13" rx="2" fill="${color}" stroke="#49545d"/><path d="M5 13H39" stroke="#ffffff80"/><text x="22" y="20" text-anchor="middle" fill="white" stroke="none" font-size="7">${component.potential === "N" ? "N" : "L"}</text></svg></div><div class="component-copy"><strong>${component.name}</strong><span>${component.detail}</span><small class="component-dimensions">Не занимает модули на рейке</small></div><button class="add-component" type="button" data-add-comb="${component.potential}" aria-label="Добавить ${component.name}"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></article>`;
+}
+
+function combOptions() {
+  return { row: Number($("#combRowInput").value), potential: $("#combPotentialInput").value, side: $("#combSideInput").value, excludeId: combEditingId || "" };
+}
+function combFormInput(terminals) {
+  return { id: combEditingId || undefined, label: $("#combLabelInput").value.trim(), potential: $("#combPotentialInput").value, terminals, ratedCurrent: $("#combCurrentInput").value, contactType: $("#combContactInput").value, series: $("#combSeriesInput").value };
+}
+function combSelection() {
+  return E.combCandidates(project, combOptions()).filter((port) => !port.occupied && combChoice.has(E.endpointKey(port))).map(E.refOf);
+}
+function renderCombChoices() {
+  const ports = E.combCandidates(project, combOptions());
+  const available = new Set(ports.filter((port) => !port.occupied).map(E.endpointKey));
+  combChoice = new Set([...combChoice].filter((key) => available.has(key)));
+  $("#combTerminalChoices").innerHTML = ports.map((port) => `<label class="comb-terminal-choice ${port.occupied ? "unavailable" : ""}"><input type="checkbox" data-comb-key="${escapeHtml(E.endpointKey(port))}" ${combChoice.has(E.endpointKey(port)) ? "checked" : ""} ${port.occupied ? "disabled" : ""}/><span><strong>${escapeHtml(port.ownerLabel)} · ${escapeHtml(port.label)} · ${port.potential}</strong><small>${escapeHtml(port.device.name)}${port.occupied ? " · клемма занята гребёнкой" : ""}</small></span></label>`).join("") || "<p class=\"model-note\">На этой рейке нет подходящих клемм. Измените проводник или сторону.</p>";
+  $("#combChoiceCount").textContent = `${combChoice.size} / ${available.size}`;
+  $("#applyCombButton").disabled = combChoice.size < 2;
+  $("#combSelectGroup").disabled = available.size < 2;
+  $("#combError").textContent = "";
+}
+function openCombModal(options = {}) {
+  const existing = project.combs.find((comb) => comb.id === options.id), first = existing?.terminals[0];
+  const selected = project.devices.find((device) => device.id === (first?.ownerId || selectedDeviceId));
+  combEditingId = existing?.id || null;
+  combChoice = new Set(existing?.terminals.map(E.endpointKey) || []);
+  $("#combModalTitle").textContent = existing ? "Редактировать гребёнку" : "Добавить гребёнку";
+  $("#applyCombButton").textContent = existing ? "Сохранить изменения" : "Добавить гребёнку";
+  $("#combLabelInput").value = existing?.label || E.nextLabel(project.combs, "BB");
+  $("#combRowInput").innerHTML = Array.from({ length: project.board.rows }, (_, row) => `<option value="${row}">DIN ${row + 1}</option>`).join("");
+  $("#combRowInput").value = selected?.row || 0;
+  $("#combPotentialInput").value = existing?.potential || options.potential || (E.PHASES.includes(selected?.phase) ? selected.phase : "L1");
+  $("#combSideInput").value = first ? E.resolveEndpoint(project, first)?.side || "top" : "top";
+  $("#combCurrentInput").value = existing?.ratedCurrent || "";
+  $("#combContactInput").value = existing?.contactType || "";
+  $("#combSeriesInput").value = existing?.series || "";
+  $("#combReplaceJumpers").checked = !existing;
+  if (!existing && selected) E.combCandidates(project, combOptions()).filter((port) => port.ownerId === selected.id).forEach((port) => combChoice.add(E.endpointKey(port)));
+  renderCombChoices(); openModal("#combModal");
+}
+function selectCombGroup() {
+  const ports = E.combCandidates(project, combOptions()).filter((port) => !port.occupied);
+  const first = ports.find((port) => combChoice.has(E.endpointKey(port))) || ports.find((port) => /^(mcb-|rcbo|rccb-)/.test(port.device.type));
+  if (!first) return;
+  const chosen = [E.refOf(first)];
+  ports.filter((port) => /^(mcb-|rcbo|rccb-)/.test(port.device.type) && !E.sameEndpoint(port, first)).forEach((port) => {
+    try { E.saveComb(project, combFormInput([...chosen, E.refOf(port)])); chosen.push(E.refOf(port)); } catch { /* Another protected group remains unchecked. */ }
+  });
+  combChoice = new Set(chosen.map(E.endpointKey)); renderCombChoices();
+}
+function applyComb() {
+  try {
+    const result = E.saveComb(project, combFormInput(combSelection()), { replaceJumpers: $("#combReplaceJumpers").checked });
+    snapshot(); project = result.project; persistProject();
+    $("#combModal").classList.add("hidden"); selectedCombId = result.combId;
+    selectedWireId = selectedBusbarId = selectedDeviceId = null;
+    renderAll(); toast("Гребёнка подключена к выбранным клеммам.");
+  } catch (error) { $("#combError").textContent = error.message; }
+}
+function initializeCombEditor() {
+  $("#deviceCombButton").addEventListener("click", () => openCombModal());
+  $("#editCombButton").addEventListener("click", () => openCombModal({ id: selectedCombId }));
+  ["combRowInput", "combPotentialInput", "combSideInput"].forEach((id) => $(`#${id}`).addEventListener("change", renderCombChoices));
+  $("#combTerminalChoices").addEventListener("change", (event) => {
+    const key = event.target.dataset.combKey; if (!key) return;
+    if (event.target.checked) combChoice.add(key); else combChoice.delete(key);
+    renderCombChoices();
+  });
+  $("#combSelectGroup").addEventListener("click", selectCombGroup);
 }
 
 ;
@@ -6563,6 +6671,10 @@ function initFloorPencil() {
     zoomOutButton: "Уменьшить масштаб компоновки для общего обзора.",
     librarySearch: "Найти аппарат в библиотеке по имени или типу. / переводит курсор в поиск.",
     openTemplatesButton: "Выбрать готовую компоновку для квартиры или дома с начальными цепями и проводкой.",
+    deviceCombButton: "Добавить фазную или нулевую гребёнку. Этот аппарат будет выбран в списке клемм.",
+    editCombButton: "Изменить клеммы, проводник, тип контакта и паспортные данные гребёнки.",
+    combSelectGroup: "Выбрать клеммы одной электрической группы на этой рейке. Начните с нужного аппарата.",
+    combReplaceJumpers: "Убрать дублирующие перемычки между выбранными клеммами, сохранив общее питание.",
     floorPointsMode: "Размещать и передвигать розетки, светильники, выключатели, технику и щиток; назначать цепи и высоты.",
     floorGeometryMode: "Редактировать стены, углы и комнаты; рисовать свой контур, добавлять двери и окна.",
     floorPencilMode: "Нарисовать комнату углами или отрезками. Enter замыкает контур, Alt позволяет наклонную стену, Esc отменяет черновик. P переключает карандаш.",
@@ -6827,6 +6939,11 @@ const COMPONENTS = [
   ...ControlDevices.COMPONENTS,
 ];
 
+const COMB_ACCESSORIES = [
+  { accessory: true, name: "Фазная гребёнка", detail: "L1 / L2 / L3 · к клеммам аппаратов", category: "Монтаж", potential: "L1" },
+  { accessory: true, name: "Нулевая гребёнка", detail: "N · к нейтральным клеммам аппаратов", category: "Монтаж", potential: "N" },
+];
+
 const CATEGORY_LABELS = ["Все", "Защита", "Дифзащита", "Управление", "Учёт", "Монтаж"];
 const PHASE_COLORS = { L1: "#80502c", L2: "#24282c", L3: "#8b9299", "3P": "#55636d", N: "#1976df", PE: "#24864b" };
 
@@ -7013,14 +7130,14 @@ function renderProjectChrome() {
 
 function renderLibrary() {
   const query = $("#librarySearch").value.trim().toLocaleLowerCase("uk");
-  const filtered = COMPONENTS.filter((component) => {
+  const filtered = [...COMPONENTS, ...COMB_ACCESSORIES].filter((component) => {
     const categoryMatch = activeCategory === "Все" || component.category === activeCategory;
     const searchMatch = !query || `${component.name} ${component.detail} ${component.category}`.toLocaleLowerCase("uk").includes(query);
     return categoryMatch && searchMatch;
   });
   $("#libraryCount").textContent = filtered.length;
   $("#categoryTabs").innerHTML = CATEGORY_LABELS.map((category) => `<button class="category-tab ${category === activeCategory ? "active" : ""}" type="button" data-category="${category}">${category}</button>`).join("");
-  $("#componentList").innerHTML = filtered.length ? filtered.map((component) => `
+  $("#componentList").innerHTML = filtered.length ? filtered.map((component) => component.accessory ? combCatalogMarkup(component) : `
     <article class="component-card" draggable="true" data-component-type="${component.type}" title="Перетащите на DIN-рейку">
       <div class="component-preview type-${component.face} ${component.photo ? "has-photo" : ""}" style="--component-accent:${component.accent};--photo-scale:${component.photoScale || 1}">${component.photo ? componentArtworkMarkup(component) : ""}</div>
       <div class="component-copy"><strong>${component.name}</strong><span>${component.detail} · ${getComponent(component.type).modules} мод.</span><small class="component-dimensions">${mmText(M.dimensions({ type: component.type, geometryId: M.defaultProfile(component.type) }))}${M.defaultProfile(component.type) ? " · каталог" : " · ориентировочно"}</small></div>
@@ -7029,7 +7146,9 @@ function renderLibrary() {
 
   $$("[data-category]").forEach((button) => button.addEventListener("click", () => { activeCategory = button.dataset.category; renderLibrary(); }));
   $$("[data-add-component]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); addComponent(button.dataset.addComponent); }));
-  $$(".component-card").forEach((card) => {
+  $$("[data-add-comb]").forEach((button) => button.addEventListener("click", () => openCombModal({ potential: button.dataset.addComb })));
+  $$("[data-comb-preset]").forEach((card) => card.addEventListener("dblclick", () => openCombModal({ potential: card.dataset.combPreset })));
+  $$(".component-card[data-component-type]").forEach((card) => {
     card.addEventListener("dragstart", (event) => {
       draggedDeviceId = null; draggedComponentType = card.dataset.componentType;
       event.dataTransfer.setData("text/component-type", draggedComponentType);
@@ -7303,6 +7422,7 @@ function renderInspector() {
   const device = project.devices.find((item) => item.id === selectedDeviceId);
   $("#deviceInspector").classList.toggle("hidden", !device);
   $("#replaceAfddButton").classList.toggle("hidden", device?.type !== "rcbo-afdd");
+  $("#deviceCombButton").classList.toggle("hidden", !device || !E.deviceTerminals(device).some((port) => ["top", "bottom"].includes(port.side) && [...E.PHASES, "N"].includes(port.potential)));
   const consumer = device && E.consumerForDevice(project, device.id), consumerButton = $("#addConsumerButton");
   consumerButton.classList.toggle("hidden", !E.canAddConsumer(device));
   consumerButton.disabled = Boolean(consumer);
@@ -7396,8 +7516,8 @@ function getBomRows() {
     grouped.get(key).count += 1;
   });
   project.combs.forEach((comb) => {
-    const key = `comb|${comb.potential}|${comb.terminals.length}|${comb.ratedCurrent || ""}`;
-    if (!grouped.has(key)) grouped.set(key, { component: { name: `Гребёнка ${comb.potential}, ${comb.terminals.length} контактов`, category: "Монтаж", modules: 0 }, rating: comb.ratedCurrent ? `${comb.ratedCurrent} А` : "Номинал не задан", count: 0 });
+    const key = `comb|${comb.potential}|${comb.terminals.length}|${comb.ratedCurrent || ""}|${comb.contactType || ""}|${comb.series || ""}`;
+    if (!grouped.has(key)) grouped.set(key, { component: { name: `Гребёнка ${comb.potential}, ${comb.terminals.length} контактов${comb.contactType ? ` · ${comb.contactType.toUpperCase()}` : ""}${comb.series ? ` · ${comb.series}` : ""}`, category: "Монтаж", modules: 0 }, rating: comb.ratedCurrent ? `${comb.ratedCurrent} А` : "Номинал не задан", count: 0 });
     grouped.get(key).count += 1;
   });
   project.wires.forEach((wire) => {

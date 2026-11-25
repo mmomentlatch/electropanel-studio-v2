@@ -12,14 +12,14 @@
     <meta name="theme-color" content="#101a24" />
     <title>ElectroPanel Studio 2</title>
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=236" />
-    <link rel="stylesheet" href="wiring.css?v=236" />
-    <link rel="stylesheet" href="templates.css?v=236" />
-    <link rel="stylesheet" href="mechanical.css?v=236" />
-    <link rel="stylesheet" href="schematic.css?v=236" />
-    <link rel="stylesheet" href="floor-plan.css?v=236" />
-    <link rel="stylesheet" href="buttons.css?v=236" />
-    <link rel="stylesheet" href="language.css?v=236" />
+    <link rel="stylesheet" href="styles.css?v=239" />
+    <link rel="stylesheet" href="wiring.css?v=239" />
+    <link rel="stylesheet" href="templates.css?v=239" />
+    <link rel="stylesheet" href="mechanical.css?v=239" />
+    <link rel="stylesheet" href="schematic.css?v=239" />
+    <link rel="stylesheet" href="floor-plan.css?v=239" />
+    <link rel="stylesheet" href="buttons.css?v=239" />
+    <link rel="stylesheet" href="language.css?v=239" />
   </head>
   <body aria-busy="true">
     <p id="appLoading" role="status">Завантаження редактора…</p>
@@ -424,6 +424,7 @@
               <label class="field full hidden" id="consumerNameField"><span>Назва споживача</span><input id="consumerNameInput" type="text" maxlength="160"/><small>Початково — назва апарата. Редагування цього поля змінює лише споживача.</small></label>
               <p class="model-note hidden" id="addConsumerHelp">Блок з’явиться під апаратом. Назва — з поля «Опис кола». Проводи підключайте до його клем у режимі «Проводка».</p>
               <button class="button ghost full-width hidden" id="replaceAfddButton" type="button">Замінити на звичайний дифавтомат</button>
+              <button class="button ghost full-width" id="deviceCombButton" type="button">Додати гребінку</button>
               <button class="button ghost full-width" id="showDeviceTerminalsButton" type="button">З’єднати клеми цього апарата</button>
               <p class="model-note">Універсальна модель клем. Для конкретної серії потрібні дані виробника.</p>
             </section>
@@ -492,7 +493,7 @@
 
             <section class="inspector-section hidden" id="combInspector">
               <div class="section-title-row"><div><span class="eyebrow">Монтажна шина</span><h2 id="combInspectorTitle">Гребінка</h2></div><button class="icon-button danger" id="deleteCombButton" type="button" aria-label="Видалити гребінку"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
-              <div id="combMembers" class="terminal-assignment"></div>
+              <div id="combMembers" class="terminal-assignment"></div><button class="button ghost full-width" id="editCombButton" type="button">Редагувати гребінку</button>
             </section>
 
             <section class="inspector-section mechanical-summary">
@@ -619,11 +620,15 @@
           <label class="field full"><span>Позначення</span><input id="combLabelInput" /></label>
           <label class="field"><span>DIN-рейка</span><select id="combRowInput"></select></label>
           <label class="field"><span>Провідник</span><select id="combPotentialInput"><option>L1</option><option>L2</option><option>L3</option><option>N</option></select></label>
-          <label class="field"><span>Від модуля</span><input id="combStartInput" type="number" min="1" value="1" /></label>
-          <label class="field"><span>До модуля</span><input id="combEndInput" type="number" min="2" value="18" /></label>
           <label class="field"><span>Сторона клем</span><select id="combSideInput"><option value="top">Вхід (зверху)</option><option value="bottom">Вихід (знизу)</option></select></label>
           <label class="field"><span>Номінал, А</span><input id="combCurrentInput" type="number" min="1" placeholder="Не задано" /></label>
-          <p class="model-note full">Гребінка об’єднає однойменні клеми апаратів у вибраному діапазоні. Сумісність кроку та затискачів потрібно підтвердити для конкретної серії.</p>
+          <label class="field"><span>Тип контакту</span><select id="combContactInput"><option value="">Не задано</option><option value="pin">PIN · штир</option><option value="fork">FORK · вилка</option></select></label>
+          <label class="field"><span>Серія / модель</span><input id="combSeriesInput" maxlength="120" placeholder="Не задано"/></label>
+          <div class="full comb-choice-heading"><strong>Апарати для підключення</strong><output id="combChoiceCount" aria-live="polite"></output><button class="button ghost" id="combSelectGroup" type="button">Вибрати групу</button></div>
+          <div id="combTerminalChoices" class="full comb-terminal-choices"></div>
+          <label class="check-label full"><input id="combReplaceJumpers" type="checkbox" checked/>Замінити зайві перемички гребінкою</label>
+          <p class="model-note full">Оберіть щонайменше дві клеми. Спільне живлення залишиться підключеним. Сумісність кроку та затискачів потрібно підтвердити для конкретної серії.</p>
+          <p class="comb-form-error full" id="combError" role="alert"></p>
         </div>
         <div class="modal-footer"><button class="button primary" id="applyCombButton" type="button">Додати гребінку</button></div>
       </div>
@@ -651,8 +656,8 @@
     <div class="toast-region" id="toastRegion" aria-live="polite"></div>
 
     <div class="modal-backdrop hidden" id="formDraftsModal"><section class="modal-card form-drafts-modal" role="dialog" aria-modal="true" aria-labelledby="formDraftsTitle"><button type="button" class="modal-close" data-close-modal aria-label="Закрити"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M6 18 18 6"/></svg></button><h2 id="formDraftsTitle">Незастосовані зміни</h2><p id="formDraftsStorage"></p><ul id="formDraftsList"></ul></section></div>
-<script defer src="language-data.js?v=236"></script>
-    <script defer src="language.js?v=236"></script>
-    <script defer src="boot.js?v=236"></script>
+<script defer src="language-data.js?v=239"></script>
+    <script defer src="language.js?v=239"></script>
+    <script defer src="boot.js?v=239"></script>
   </body>
 </html>
